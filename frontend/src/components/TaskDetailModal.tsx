@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { Task, TaskStatus } from "../types/task";
 import { taskApi } from "../lib/taskApi";
 import { Button } from "./ui/Button";
+import { ActivityTimeline } from "./ActivityTimeline";
 
 interface Props {
   task: Task;
@@ -161,6 +162,11 @@ export function TaskDetailModal({ task, projectId, onClose, onUpdated, onEdit, o
                     </div>
                 </div>
                 ) : null}
+            </div>
+            
+            <div className="col-span-3 mt-4 pt-6 border-t border-gray-800">
+                <h3 className="text-lg font-bold text-white mb-4">Activity</h3>
+                <ActivityTimeline projectId={projectId} taskId={task.id} />
             </div>
         </div>
       </div>

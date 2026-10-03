@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 from uuid import UUID
-from typing import Any, List
+from typing import Any, List, Optional
 from datetime import datetime, timezone
 
 from app.api import deps
@@ -14,7 +14,9 @@ router = APIRouter()
 
 @router.get("", response_model=List[NotificationResponse])
 def get_notifications(
-    *,
+    priority: Optional[str] = None,
+    unread_only: bool = False,
+    entity_type: Optional[str] = None,
     db: Session = Depends(deps.get_db),
     current_user: User = Depends(deps.get_current_user)
 ) -> Any:
@@ -22,7 +24,15 @@ def get_notifications(
     check_and_generate_overdue_notifications(db, current_user.id)
     check_and_generate_health_notifications(db, current_user.id)
     
-    return db.query(Notification).filter(Notification.user_id == current_user.id).order_by(Notification.created_at.desc()).limit(50).all()
+    query = db.query(Notification).filter(Notification.user_id == current_user.id)
+    if priority:
+        query = query.filter(Notification.priority == priority)
+    if unread_only:
+        query = query.filter(Notification.read == False)
+    if entity_type:
+        query = query.filter(Notification.entity_type == entity_type)
+        
+    return query.order_by(Notification.created_at.desc()).limit(100).all()
 
 @router.get("/unread-count", response_model=UnreadCountResponse)
 def get_unread_count(
@@ -44,6 +54,21 @@ def mark_read(
     if n:
         n.read = True
         n.read_at = datetime.now(timezone.utc)
+        db.commit()
+        db.refresh(n)
+    return n
+
+@router.patch("/{notification_id}/unread", response_model=NotificationResponse)
+def mark_unread(
+    *,
+    db: Session = Depends(deps.get_db),
+    current_user: User = Depends(deps.get_current_user),
+    notification_id: UUID
+) -> Any:
+    n = db.query(Notification).filter(Notification.id == notification_id, Notification.user_id == current_user.id).first()
+    if n:
+        n.read = False
+        n.read_at = None
         db.commit()
         db.refresh(n)
     return n
@@ -87,11 +112,8 @@ def update_prefs(
     request: NotificationPreferenceBase
 ) -> Any:
     pref = get_preferences(db, current_user.id)
-    pref.task_notifications = request.task_notifications
-    pref.deadline_notifications = request.deadline_notifications
-    pref.project_health_notifications = request.project_health_notifications
-    pref.github_notifications = request.github_notifications
-    pref.ai_notifications = request.ai_notifications
+    for k, v in request.dict().items():
+        setattr(pref, k, v)
     db.commit()
     db.refresh(pref)
     return pref

@@ -32,7 +32,12 @@ def register(user_in: UserCreate, db: Session = Depends(deps.get_db)):
 @router.post("/login", response_model=Token)
 def login(user_in: UserLogin, db: Session = Depends(deps.get_db)):
     user = db.query(User).filter(User.email == user_in.email).first()
+    
+    from app.services.audit_service import record_event
+    
     if not user or not security.verify_password(user_in.password, user.password_hash):
+        if user:
+            record_event(db, organization_id=None, event_type="AUTH_LOGIN_FAILED", entity_type="USER", actor_user_id=user.id, entity_id=user.id)
         raise HTTPException(
             status_code=401,
             detail="Incorrect email or password",
@@ -40,6 +45,8 @@ def login(user_in: UserLogin, db: Session = Depends(deps.get_db)):
     
     user.last_login_at = datetime.utcnow()
     db.commit()
+    
+    record_event(db, organization_id=None, event_type="AUTH_LOGIN", entity_type="USER", actor_user_id=user.id, entity_id=user.id)
     
     access_token_expires = timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
     return {

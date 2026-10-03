@@ -8,6 +8,7 @@ from app.models.notification import Notification, NotificationPreference
 from app.models.organization import Organization, OrganizationMember, OrganizationRole, Team, TeamMember, OrganizationInvitation
 from app.models.sprint import Sprint, SprintSnapshot
 from app.models.milestone import Milestone
+from app.models.audit import AuditEvent
 
 
 

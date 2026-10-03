@@ -12,6 +12,7 @@ import { ProjectGitHub } from "../components/ProjectGitHub";
 import { ProjectAI } from "../components/ProjectAI";
 import { ProjectAnalytics } from "../components/ProjectAnalytics";
 import { Sprints } from "../components/Sprints";
+import { ActivityTimeline } from "../components/ActivityTimeline";
 import { Backlog } from "../components/Backlog";
 import { Roadmap } from "../components/Roadmap";
 
@@ -24,7 +25,7 @@ export default function ProjectDetails() {
   const [tasks, setTasks] = useState<Task[]>([]);
   const [loading, setLoading] = useState(true);
   
-  const [activeTab, setActiveTab] = useState<"overview" | "tasks" | "github" | "ai" | "analytics" | "sprints" | "backlog" | "roadmap">("overview");
+  const [activeTab, setActiveTab] = useState<"overview" | "tasks" | "github" | "ai" | "analytics" | "sprints" | "backlog" | "roadmap" | "activity">("overview");
   const [view, setView] = useState<"kanban" | "list">("kanban");
   const [showForm, setShowForm] = useState(false);
   const [editingTask, setEditingTask] = useState<Task | null>(null);
@@ -140,6 +141,7 @@ export default function ProjectDetails() {
           { id: 'sprints', label: 'Sprints' },
           { id: 'backlog', label: 'Backlog' },
           { id: 'roadmap', label: 'Roadmap' },
+          { id: 'activity', label: 'Activity' },
           { id: 'github', label: 'GitHub' },
           { id: 'ai', label: 'AI Assistant' },
           { id: 'analytics', label: 'Analytics' }
@@ -272,6 +274,7 @@ export default function ProjectDetails() {
         {activeTab === 'sprints' && <Sprints project={project} />}
         {activeTab === 'backlog' && <Backlog project={project} />}
         {activeTab === 'roadmap' && <Roadmap project={project} />}
+        {activeTab === 'activity' && <div className="bg-gray-900 border border-gray-800 rounded-lg p-6"><ActivityTimeline projectId={project.id} /></div>}
       </div>
       
       {viewingTask && !showForm && (

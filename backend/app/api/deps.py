@@ -42,6 +42,9 @@ def get_current_user(
         raise HTTPException(status_code=404, detail="User not found")
     if not user.is_active:
         raise HTTPException(status_code=400, detail="Inactive user")
+        
+    from app.core.context import set_current_user_id
+    set_current_user_id(user.id)
     return user
 
 
@@ -78,5 +81,8 @@ def require_organization_member(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="You do not have the required role in this organization"
         )
+        
+    from app.core.context import set_current_org_id
+    set_current_org_id(organization_id)
         
     return member

@@ -74,6 +74,45 @@ export function NotificationPreferences() {
           </div>
           <input type="checkbox" checked={prefs.ai_notifications} onChange={(e) => handleChange('ai_notifications', e.target.checked)} className="w-5 h-5" />
         </div>
+        <div className="flex items-center justify-between p-4 bg-gray-800 rounded">
+          <div>
+            <div className="text-white font-medium">Task Assignments</div>
+            <div className="text-sm text-gray-400">Alerts when you are assigned to a task.</div>
+          </div>
+          <input type="checkbox" checked={prefs.task_assignments} onChange={(e) => handleChange('task_assignments', e.target.checked)} className="w-5 h-5 rounded border-gray-600 bg-gray-900" />
+        </div>
+
+        <div className="flex items-center justify-between p-4 bg-gray-800 rounded">
+          <div>
+            <div className="text-white font-medium">Sprint Events</div>
+            <div className="text-sm text-gray-400">Alerts for sprint starts and completions.</div>
+          </div>
+          <input type="checkbox" checked={prefs.sprint_events} onChange={(e) => handleChange('sprint_events', e.target.checked)} className="w-5 h-5 rounded border-gray-600 bg-gray-900" />
+        </div>
+
+        <div className="flex items-center justify-between p-4 bg-gray-800 rounded">
+          <div>
+            <div className="text-white font-medium">Milestone Events</div>
+            <div className="text-sm text-gray-400">Alerts for milestone changes.</div>
+          </div>
+          <input type="checkbox" checked={prefs.milestone_events} onChange={(e) => handleChange('milestone_events', e.target.checked)} className="w-5 h-5 rounded border-gray-600 bg-gray-900" />
+        </div>
+
+        <div className="flex items-center justify-between p-4 bg-gray-800 rounded">
+          <div>
+            <div className="text-white font-medium">Security & Audit Events</div>
+            <div className="text-sm text-gray-400">Alerts for organization role changes and critical settings.</div>
+          </div>
+          <input type="checkbox" checked={prefs.security_events} onChange={(e) => handleChange('security_events', e.target.checked)} className="w-5 h-5 rounded border-gray-600 bg-gray-900" />
+        </div>
+
+        <div className="flex items-center justify-between p-4 bg-gray-800 rounded">
+          <div>
+            <div className="text-white font-medium">Email Digests</div>
+            <div className="text-sm text-gray-400">Receive a daily summary email of missed notifications.</div>
+          </div>
+          <input type="checkbox" checked={prefs.digest_notifications} onChange={(e) => handleChange('digest_notifications', e.target.checked)} className="w-5 h-5 rounded border-gray-600 bg-gray-900" />
+        </div>
       </div>
 
       <div className="mt-8 flex justify-end">
