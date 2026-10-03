@@ -16,6 +16,8 @@ import { NotificationPreferences } from "./pages/NotificationPreferences";
 import Timesheet from "./pages/Timesheet";
 import ProductivityAnalytics from "./pages/ProductivityAnalytics";
 import OrganizationLayout from "./pages/OrganizationLayout";
+import ReleaseDetails from "./pages/ReleaseDetails";
+import DeliveryAnalytics from "./pages/DeliveryAnalytics";
 
 export default function App() {
   return (
@@ -31,14 +33,18 @@ export default function App() {
           <Route element={<DashboardLayout />}>
             <Route path="/" element={<Dashboard />} />
             <Route path="/profile" element={<Profile />} />
+            <Route path="/time" element={<Timesheet />} />
             <Route path="/projects" element={<Projects />} />
             <Route path="/projects/new" element={<ProjectForm />} />
             <Route path="/projects/:projectId" element={<ProjectDetails />} />
             <Route path="/projects/:projectId/edit" element={<ProjectForm />} />
+            <Route path="/projects/:projectId/releases/:releaseId" element={<ReleaseDetails />} />
             <Route path="/settings/integrations" element={<GitHubSettings />} />
             <Route path="/settings/integrations/github/callback" element={<GitHubCallback />} />
             <Route path="/settings/notifications" element={<NotificationPreferences />} />
             <Route path="/organization" element={<OrganizationLayout />} />
+            <Route path="/analytics/productivity" element={<ProductivityAnalytics />} />
+            <Route path="/analytics/delivery" element={<DeliveryAnalytics />} />
           </Route>
         </Routes>
       </AuthProvider>

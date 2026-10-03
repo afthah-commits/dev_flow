@@ -1,6 +1,9 @@
 import sys
+import os
+
+backend_dir = os.path.dirname(os.path.abspath(__file__))
 sys.path = [p for p in sys.path if 'crmappclone' not in p]
-sys.path.insert(0, 'C:\\personal_projects\\devflow\\backend')
+sys.path.insert(0, backend_dir)
 
 import pytest
-sys.exit(pytest.main(["tests/test_time.py"]))
+sys.exit(pytest.main([os.path.join(backend_dir, "tests", "test_delivery.py")]))

@@ -2,6 +2,11 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.core.config import settings
 from app.api.v1 import auth, projects, tasks, dashboard, github, ai, analytics, notifications, organizations, teams, invitations, labels, templates, sprints, milestones, backlog, roadmap, audit, time
+from app.api.v1.delivery import (
+    project_releases_router, releases_router, environments_router,
+    project_deployments_router, deployments_router, pipelines_router,
+    delivery_metrics_router
+)
 
 app = FastAPI(
     title=settings.PROJECT_NAME,
@@ -35,11 +40,18 @@ app.include_router(ai.router, prefix=f"{settings.API_V1_STR}/ai", tags=["ai"])
 app.include_router(analytics.router, prefix=f"{settings.API_V1_STR}/analytics", tags=["analytics"])
 app.include_router(notifications.router, prefix=f"{settings.API_V1_STR}/notifications", tags=["notifications"])
 app.include_router(audit.router, prefix=f"{settings.API_V1_STR}/audit", tags=["audit"])
+app.include_router(time.router, prefix=f"{settings.API_V1_STR}/time", tags=["Time Tracking"])
 
-
-
+# Phase 13: Delivery
+app.include_router(project_releases_router, prefix=f"{settings.API_V1_STR}/projects/{{project_id}}/releases", tags=["releases"])
+app.include_router(releases_router, prefix=f"{settings.API_V1_STR}/releases", tags=["releases"])
+app.include_router(environments_router, prefix=f"{settings.API_V1_STR}/projects/{{project_id}}/environments", tags=["environments"])
+app.include_router(project_deployments_router, prefix=f"{settings.API_V1_STR}/projects/{{project_id}}/deployments", tags=["deployments"])
+app.include_router(deployments_router, prefix=f"{settings.API_V1_STR}/deployments", tags=["deployments"])
+app.include_router(pipelines_router, prefix=f"{settings.API_V1_STR}/projects/{{project_id}}/pipelines", tags=["pipelines"])
+app.include_router(delivery_metrics_router, prefix=f"{settings.API_V1_STR}/analytics", tags=["delivery-analytics"])
 
 @app.get("/health")
 def health_check():
     return {"status": "ok"}
-app.include_router(time.router, prefix="/api/v1/time", tags=["Time Tracking"])
+

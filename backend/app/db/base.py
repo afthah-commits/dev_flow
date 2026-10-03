@@ -10,6 +10,7 @@ from app.models.sprint import Sprint, SprintSnapshot
 from app.models.milestone import Milestone
 from app.models.audit import AuditEvent
 from app.models.time import TimeEntry, ActiveTimer
+from app.models.delivery import Release, ReleaseTask, ReleasePullRequest, Environment, Deployment, PipelineRun
 
 
 

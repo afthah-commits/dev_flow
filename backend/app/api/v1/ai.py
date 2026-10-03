@@ -167,3 +167,52 @@ async def breakdown_task(
         return AIActionResponse(result="Success", structured_data=data)
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/projects/{project_id}/releases/{release_id}/generate-notes")
+async def generate_release_notes(
+    project_id: UUID,
+    release_id: UUID,
+    db: Session = Depends(deps.get_db),
+    current_user: User = Depends(deps.get_current_user),
+    org_id: UUID = Depends(deps.get_current_organization_id),
+) -> Any:
+    """Generate AI-drafted release notes. Output is advisory only — user must review."""
+    deps.require_organization_member(db, current_user.id, org_id)
+
+    from app.models.delivery import Release, ReleaseTask, ReleasePullRequest
+    from app.models.task import Task
+
+    release = db.query(Release).filter(Release.id == release_id, Release.project_id == project_id).first()
+    if not release:
+        raise HTTPException(status_code=404, detail="Release not found")
+
+    # Gather context
+    rts = db.query(ReleaseTask).filter(ReleaseTask.release_id == release_id).all()
+    task_ids = [rt.task_id for rt in rts]
+    tasks = db.query(Task).filter(Task.id.in_(task_ids)).all() if task_ids else []
+    prs = db.query(ReleasePullRequest).filter(ReleasePullRequest.release_id == release_id).all()
+
+    task_lines = "\n".join([f"- [{t.status.value if t.status else 'N/A'}] {t.title}" for t in tasks]) or "No tasks"
+    pr_lines = "\n".join([f"- PR #{p.pr_number}: {p.pr_title or 'Untitled'}" for p in prs]) or "No PRs"
+
+    prompt = f"""Generate release notes for version {release.version} ({release.name}).
+Release type: {release.release_type.value if release.release_type else 'MINOR'}
+
+Included tasks:
+{task_lines}
+
+Included pull requests:
+{pr_lines}
+
+Format the notes with sections: Features, Improvements, Bug Fixes, Breaking Changes, Other.
+Keep it professional and concise."""
+
+    provider = get_ai_provider()
+    messages = [{"role": "user", "content": prompt}]
+    try:
+        notes = await provider.chat(messages=messages, system_prompt=SYSTEM_PROMPT)
+        return {"release_id": str(release.id), "version": release.version, "generated_notes": notes, "advisory": True}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+

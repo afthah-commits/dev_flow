@@ -16,6 +16,9 @@ import { ActivityTimeline } from "../components/ActivityTimeline";
 import { Backlog } from "../components/Backlog";
 import { ProjectTimeTab } from "../components/ProjectTimeTab";
 import { Roadmap } from "../components/Roadmap";
+import Releases from "./Releases";
+import Deployments from "./Deployments";
+import PipelineRuns from "./PipelineRuns";
 
 export default function ProjectDetails() {
   const { projectId } = useParams();
@@ -26,7 +29,7 @@ export default function ProjectDetails() {
   const [tasks, setTasks] = useState<Task[]>([]);
   const [loading, setLoading] = useState(true);
   
-  const [activeTab, setActiveTab] = useState<"overview" | "tasks" | "github" | "ai" | "analytics" | "sprints" | "backlog" | "roadmap" | "activity" | "time">("overview");
+  const [activeTab, setActiveTab] = useState<"overview" | "tasks" | "github" | "ai" | "analytics" | "sprints" | "backlog" | "roadmap" | "activity" | "time" | "releases" | "deployments" | "pipelines">("overview");
   const [view, setView] = useState<"kanban" | "list">("kanban");
   const [showForm, setShowForm] = useState(false);
   const [editingTask, setEditingTask] = useState<Task | null>(null);
@@ -142,6 +145,9 @@ export default function ProjectDetails() {
           { id: 'sprints', label: 'Sprints' },
           { id: 'backlog', label: 'Backlog' },
           { id: 'roadmap', label: 'Roadmap' },
+            { id: 'releases', label: 'Releases' },
+            { id: 'deployments', label: 'Deployments' },
+            { id: 'pipelines', label: 'Pipelines' },
           { id: 'activity', label: 'Activity' },
           { id: 'github', label: 'GitHub' },
           { id: 'ai', label: 'AI Assistant' },
@@ -277,6 +283,9 @@ export default function ProjectDetails() {
         {activeTab === 'sprints' && <Sprints project={project} />}
         {activeTab === 'backlog' && <Backlog project={project} />}
         {activeTab === 'roadmap' && <Roadmap project={project} />}
+        {activeTab === 'releases' && <Releases />}
+        {activeTab === 'deployments' && <Deployments />}
+        {activeTab === 'pipelines' && <PipelineRuns />}
         {activeTab === 'activity' && <div className="bg-gray-900 border border-gray-800 rounded-lg p-6"><ActivityTimeline projectId={project.id} /></div>}
       </div>
       
