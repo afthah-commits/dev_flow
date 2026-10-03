@@ -14,6 +14,7 @@ import { ProjectAnalytics } from "../components/ProjectAnalytics";
 import { Sprints } from "../components/Sprints";
 import { ActivityTimeline } from "../components/ActivityTimeline";
 import { Backlog } from "../components/Backlog";
+import { ProjectTimeTab } from "../components/ProjectTimeTab";
 import { Roadmap } from "../components/Roadmap";
 
 export default function ProjectDetails() {
@@ -25,7 +26,7 @@ export default function ProjectDetails() {
   const [tasks, setTasks] = useState<Task[]>([]);
   const [loading, setLoading] = useState(true);
   
-  const [activeTab, setActiveTab] = useState<"overview" | "tasks" | "github" | "ai" | "analytics" | "sprints" | "backlog" | "roadmap" | "activity">("overview");
+  const [activeTab, setActiveTab] = useState<"overview" | "tasks" | "github" | "ai" | "analytics" | "sprints" | "backlog" | "roadmap" | "activity" | "time">("overview");
   const [view, setView] = useState<"kanban" | "list">("kanban");
   const [showForm, setShowForm] = useState(false);
   const [editingTask, setEditingTask] = useState<Task | null>(null);
@@ -144,7 +145,8 @@ export default function ProjectDetails() {
           { id: 'activity', label: 'Activity' },
           { id: 'github', label: 'GitHub' },
           { id: 'ai', label: 'AI Assistant' },
-          { id: 'analytics', label: 'Analytics' }
+          { id: 'analytics', label: 'Analytics' },
+            { id: 'time', label: 'Time' }
         ].map(tab => (
           <button
             key={tab.id}
@@ -271,6 +273,7 @@ export default function ProjectDetails() {
         {activeTab === 'github' && <ProjectGitHub project={project} />}
         {activeTab === 'ai' && <ProjectAI project={project} />}
         {activeTab === 'analytics' && <ProjectAnalytics project={project} />}
+          {activeTab === 'time' && <ProjectTimeTab projectId={project.id} />}
         {activeTab === 'sprints' && <Sprints project={project} />}
         {activeTab === 'backlog' && <Backlog project={project} />}
         {activeTab === 'roadmap' && <Roadmap project={project} />}

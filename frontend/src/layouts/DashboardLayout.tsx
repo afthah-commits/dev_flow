@@ -3,6 +3,7 @@ import { Outlet, Navigate, Link } from "react-router-dom";
 import { useAuth } from "../hooks/useAuth";
 import { useOrganization } from "../contexts/OrganizationContext";
 import { NotificationCenter } from "../components/NotificationCenter";
+import { TimerWidget } from "../components/TimerWidget";
 
 export default function DashboardLayout() {
   const { user, isAuthenticated, isLoading: isAuthLoading, logout } = useAuth();
@@ -38,6 +39,8 @@ export default function DashboardLayout() {
           <Link to="/" className="hover:text-white transition-colors">Dashboard</Link>
           <Link to="/projects" className="hover:text-white transition-colors">Projects</Link>
           <Link to="/organization" className="hover:text-white transition-colors">Organization</Link>
+          <Link to="/time" className="hover:text-white transition-colors">Time</Link>
+          <Link to="/analytics/productivity" className="hover:text-white transition-colors">Productivity</Link>
           <Link to="/profile" className="hover:text-white transition-colors">Profile</Link>
           <div className="flex items-center space-x-3 ml-4 border-l border-gray-700 pl-4">
             <NotificationCenter />
@@ -48,7 +51,11 @@ export default function DashboardLayout() {
       </nav>
       <main className="flex-1 p-6">
         <Outlet />
+        <TimerWidget />
       </main>
     </div>
   );
 }
+
+// Note: Timer listener would go here or inside TimerWidget. Let us put it in TimerWidget!
+

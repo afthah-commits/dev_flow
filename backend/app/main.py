@@ -1,7 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.core.config import settings
-from app.api.v1 import auth, projects, tasks, dashboard, github, ai, analytics, notifications, organizations, teams, invitations, labels, templates, sprints, milestones, backlog, roadmap, audit
+from app.api.v1 import auth, projects, tasks, dashboard, github, ai, analytics, notifications, organizations, teams, invitations, labels, templates, sprints, milestones, backlog, roadmap, audit, time
 
 app = FastAPI(
     title=settings.PROJECT_NAME,
@@ -42,3 +42,4 @@ app.include_router(audit.router, prefix=f"{settings.API_V1_STR}/audit", tags=["a
 @app.get("/health")
 def health_check():
     return {"status": "ok"}
+app.include_router(time.router, prefix="/api/v1/time", tags=["Time Tracking"])

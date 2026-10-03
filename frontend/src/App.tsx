@@ -13,6 +13,8 @@ import ProjectForm from "./pages/ProjectForm";
 import ProjectDetails from "./pages/ProjectDetails";
 import { GitHubSettings, GitHubCallback } from "./pages/GitHubIntegrations";
 import { NotificationPreferences } from "./pages/NotificationPreferences";
+import Timesheet from "./pages/Timesheet";
+import ProductivityAnalytics from "./pages/ProductivityAnalytics";
 import OrganizationLayout from "./pages/OrganizationLayout";
 
 export default function App() {

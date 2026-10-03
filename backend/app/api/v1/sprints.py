@@ -5,7 +5,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy import func
 from datetime import datetime
 
-from app.api.deps import get_db, get_current_user, require_organization_member
+from app.api.deps import get_db, get_current_user, get_current_organization_id, require_organization_member
 from app.models.user import User
 from app.models.project import Project
 from app.models.task import Task
@@ -254,3 +254,52 @@ def get_sprint_burndown(
     
     # If no snapshots, just return an empty list or current status
     return {"points": points}
+
+@router.get("/{sprint_id}/time/stats")
+def get_sprint_time_stats(
+    sprint_id: UUID,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+    org_id: UUID = Depends(get_current_organization_id)
+) -> Any:
+    require_organization_member(db, current_user.id, org_id)
+    from app.models.time import TimeEntry
+    
+    # We must make sure the sprint is in a project owned by org
+    sprint = db.query(Sprint).filter(Sprint.id == sprint_id).first()
+    if not sprint:
+        raise HTTPException(status_code=404, detail="Sprint not found")
+        
+    entries = db.query(TimeEntry).filter(TimeEntry.sprint_id == sprint_id).all()
+    
+    total_seconds = sum(e.duration_seconds for e in entries)
+    billable_seconds = sum(e.duration_seconds for e in entries if e.billable)
+    non_billable_seconds = total_seconds - billable_seconds
+    
+    team_members = len(set(e.user_id for e in entries))
+    tasks_tracked = len(set(e.task_id for e in entries if e.task_id))
+    
+    total_hours = total_seconds / 3600.0
+    billable_hours = billable_seconds / 3600.0
+    non_billable_hours = non_billable_seconds / 3600.0
+    
+    hours_per_member = total_hours / team_members if team_members > 0 else 0
+    hours_per_task = total_hours / tasks_tracked if tasks_tracked > 0 else 0
+    
+    from app.models.task import Task
+    tasks = db.query(Task).filter(Task.sprint_id == sprint_id).all()
+    estimated_hours = sum((t.estimate_hours or 0) for t in tasks)
+    
+    estimate_variance = total_hours - estimated_hours if estimated_hours > 0 else 0
+    
+    return {
+        "total_tracked_hours": total_hours,
+        "billable_hours": billable_hours,
+        "non_billable_hours": non_billable_hours,
+        "team_members": team_members,
+        "hours_per_member": hours_per_member,
+        "hours_per_task": hours_per_task,
+        "estimated_hours": estimated_hours,
+        "estimate_variance": estimate_variance
+    }
+

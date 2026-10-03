@@ -57,7 +57,12 @@ export function TaskDetailModal({ task, projectId, onClose, onUpdated, onEdit, o
                 <h2 className="text-2xl font-bold text-white">{task.title}</h2>
             </div>
             <div className="flex gap-2">
-                <Button variant="outline" onClick={onEdit}>Edit</Button>
+                <button onClick={() => {
+                    window.dispatchEvent(new CustomEvent('start_task_timer', { detail: { taskId: task.id, projectId: task.project_id || projectId, title: task.title } }));
+                  }} className="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded flex items-center gap-2 text-sm">
+                    ? Start Timer
+                  </button>
+                  <Button variant="outline" onClick={onEdit}>Edit</Button>
                 <Button variant="outline" onClick={onDelete} className="text-red-400 hover:text-red-300">Delete</Button>
                 <button onClick={onClose} className="text-gray-500 hover:text-white ml-2">✕</button>
             </div>

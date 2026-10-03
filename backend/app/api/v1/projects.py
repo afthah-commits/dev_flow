@@ -167,3 +167,50 @@ def delete_project(
     db.delete(project)
     db.commit()
     return {"message": "Project deleted successfully"}
+
+@router.get("/{project_id}/time/stats")
+def get_project_time_stats(
+    project_id: UUID,
+    db: Session = Depends(deps.get_db),
+    current_user: User = Depends(deps.get_current_user),
+    org_id: UUID = Depends(deps.get_current_organization_id)
+) -> Any:
+    deps.require_organization_member(db, current_user.id, org_id)
+    project = db.query(Project).filter(Project.id == project_id, Project.organization_id == org_id).first()
+    if not project:
+        raise HTTPException(status_code=404, detail="Project not found")
+        
+    from app.models.time import TimeEntry
+    entries = db.query(TimeEntry).filter(TimeEntry.project_id == project_id).all()
+    
+    total_seconds = sum(e.duration_seconds for e in entries)
+    billable_seconds = sum(e.duration_seconds for e in entries if e.billable)
+    non_billable_seconds = total_seconds - billable_seconds
+    
+    active_users = len(set(e.user_id for e in entries))
+    tasks_tracked = len(set(e.task_id for e in entries if e.task_id))
+    
+    total_hours = total_seconds / 3600.0
+    billable_hours = billable_seconds / 3600.0
+    non_billable_hours = non_billable_seconds / 3600.0
+    
+    avg_time_per_task = total_hours / tasks_tracked if tasks_tracked > 0 else 0
+    
+    # get estimated hours
+    from app.models.task import Task
+    tasks = db.query(Task).filter(Task.project_id == project_id).all()
+    estimated_hours = sum((t.estimate_hours or 0) for t in tasks)
+    
+    estimate_variance = total_hours - estimated_hours if estimated_hours > 0 else 0
+    
+    return {
+        "total_tracked_hours": total_hours,
+        "billable_hours": billable_hours,
+        "non_billable_hours": non_billable_hours,
+        "active_users": active_users,
+        "tasks_tracked": tasks_tracked,
+        "avg_time_per_task": avg_time_per_task,
+        "estimated_hours": estimated_hours,
+        "estimate_variance": estimate_variance
+    }
+
