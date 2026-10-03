@@ -7,7 +7,5 @@ sys.path.insert(0, backend_dir)
 os.chdir(backend_dir)
 
 import alembic.config
-alembicArgs = [
-    'revision', '--autogenerate', '-m', 'add automation models'
-]
+alembicArgs = ['upgrade', 'head']
 alembic.config.main(argv=alembicArgs)

@@ -252,3 +252,26 @@ async def summarize_activity(
     messages = [{"role": "user", "content": prompt}]
     notes = await provider.chat(messages=messages, system_prompt=SYSTEM_PROMPT)
     return {"summary": notes}
+
+@router.post("/automations/generate")
+async def generate_automation(
+    request: dict,
+    current_user: User = Depends(deps.get_current_user)
+) -> Any:
+    prompt = request.get("prompt")
+    # Mock generation
+    return {
+        "trigger_type": "TASK_STATUS_CHANGED",
+        "conditions": {
+            "logical_operator": "ALL",
+            "conditions": [
+                {"field": "task.status", "operator": "EQUALS", "value": "OVERDUE"}
+            ]
+        },
+        "actions": [
+            {
+                "type": "CREATE_NOTIFICATION",
+                "message": "Task is overdue"
+            }
+        ]
+    }

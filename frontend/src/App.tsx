@@ -47,6 +47,8 @@ export default function App() {
             <Route path="/analytics/productivity" element={<ProductivityAnalytics />} />
             <Route path="/analytics/delivery" element={<DeliveryAnalytics />} />
             <Route path="/analytics/collaboration" element={<CollaborationAnalytics />} />
+              <Route path="/automations" element={<Automations />} />
+              <Route path="/automations/:id" element={<AutomationDetails />} />
           </Route>
         </Routes>
       </AuthProvider>

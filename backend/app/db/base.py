@@ -15,3 +15,4 @@ from app.models.delivery import Release, ReleaseTask, ReleasePullRequest, Enviro
 
 
 from app.models.collaboration import Comment, CommentReaction, Discussion, Attachment
+from app.models.automation import Automation, AutomationExecution, AutomationActionExecution

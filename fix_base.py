@@ -1,10 +1,8 @@
-import codecs
-
-with open('backend/app/db/base.py', 'rb') as f:
+with open('backend/app/db/base.py', 'r') as f:
     content = f.read()
 
-# Replace null bytes (if any)
-clean = content.replace(b'\x00', b'')
-
-with open('backend/app/db/base.py', 'wb') as f:
-    f.write(clean)
+import_str = "from app.models.automation import Automation, AutomationExecution, AutomationActionExecution\n"
+if import_str not in content:
+    content += import_str
+    with open('backend/app/db/base.py', 'w') as f:
+        f.write(content)
