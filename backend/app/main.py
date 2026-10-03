@@ -7,6 +7,7 @@ from app.api.v1.delivery import (
     project_deployments_router, deployments_router, pipelines_router,
     delivery_metrics_router
 )
+from app.api.v1 import collaboration, search, ws
 
 app = FastAPI(
     title=settings.PROJECT_NAME,
@@ -50,6 +51,13 @@ app.include_router(project_deployments_router, prefix=f"{settings.API_V1_STR}/pr
 app.include_router(deployments_router, prefix=f"{settings.API_V1_STR}/deployments", tags=["deployments"])
 app.include_router(pipelines_router, prefix=f"{settings.API_V1_STR}/projects/{{project_id}}/pipelines", tags=["pipelines"])
 app.include_router(delivery_metrics_router, prefix=f"{settings.API_V1_STR}/analytics", tags=["delivery-analytics"])
+
+# Phase 14: Collaboration
+app.include_router(collaboration.comments_router, prefix=f"{settings.API_V1_STR}/comments", tags=["comments"])
+app.include_router(collaboration.discussions_router, prefix=f"{settings.API_V1_STR}", tags=["discussions"])
+app.include_router(collaboration.attachments_router, prefix=f"{settings.API_V1_STR}/attachments", tags=["attachments"])
+app.include_router(search.router, prefix=f"{settings.API_V1_STR}/search", tags=["search"])
+app.include_router(ws.router, prefix=f"{settings.API_V1_STR}/ws", tags=["websocket"])
 
 @app.get("/health")
 def health_check():

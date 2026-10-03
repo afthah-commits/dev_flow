@@ -1,3 +1,4 @@
+import ProjectDiscussions from './ProjectDiscussions';
 import React, { useEffect, useState } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
 import { projectApi } from "../lib/projectApi";
@@ -29,7 +30,7 @@ export default function ProjectDetails() {
   const [tasks, setTasks] = useState<Task[]>([]);
   const [loading, setLoading] = useState(true);
   
-  const [activeTab, setActiveTab] = useState<"overview" | "tasks" | "github" | "ai" | "analytics" | "sprints" | "backlog" | "roadmap" | "activity" | "time" | "releases" | "deployments" | "pipelines">("overview");
+  const [activeTab, setActiveTab] = useState<"overview" | "tasks" | "github" | "ai" | "analytics" | "sprints" | "backlog" | "roadmap" | "activity" | "time" | "releases" | "deployments" | "pipelines" | "discussions">("overview");
   const [view, setView] = useState<"kanban" | "list">("kanban");
   const [showForm, setShowForm] = useState(false);
   const [editingTask, setEditingTask] = useState<Task | null>(null);
@@ -149,6 +150,7 @@ export default function ProjectDetails() {
             { id: 'deployments', label: 'Deployments' },
             { id: 'pipelines', label: 'Pipelines' },
           { id: 'activity', label: 'Activity' },
+            { id: 'discussions', label: 'Discussions' },
           { id: 'github', label: 'GitHub' },
           { id: 'ai', label: 'AI Assistant' },
           { id: 'analytics', label: 'Analytics' },
@@ -286,6 +288,7 @@ export default function ProjectDetails() {
         {activeTab === 'releases' && <Releases />}
         {activeTab === 'deployments' && <Deployments />}
         {activeTab === 'pipelines' && <PipelineRuns />}
+        {activeTab === 'discussions' && <ProjectDiscussions projectId={project.id} />}
         {activeTab === 'activity' && <div className="bg-gray-900 border border-gray-800 rounded-lg p-6"><ActivityTimeline projectId={project.id} /></div>}
       </div>
       

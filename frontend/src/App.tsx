@@ -1,3 +1,4 @@
+import CollaborationAnalytics from './pages/CollaborationAnalytics';
 import React from "react";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "./hooks/useAuth";
@@ -45,6 +46,7 @@ export default function App() {
             <Route path="/organization" element={<OrganizationLayout />} />
             <Route path="/analytics/productivity" element={<ProductivityAnalytics />} />
             <Route path="/analytics/delivery" element={<DeliveryAnalytics />} />
+            <Route path="/analytics/collaboration" element={<CollaborationAnalytics />} />
           </Route>
         </Routes>
       </AuthProvider>

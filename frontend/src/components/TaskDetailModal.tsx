@@ -1,3 +1,4 @@
+import CommentThread from './CommentThread';
 import React, { useState } from "react";
 import { Task, TaskStatus } from "../types/task";
 import { taskApi } from "../lib/taskApi";
@@ -122,6 +123,7 @@ export function TaskDetailModal({ task, projectId, onClose, onUpdated, onEdit, o
                 )}
             </div>
 
+            <div className="mt-8 pt-8 border-t border-gray-800"><CommentThread entityType="TASK" entityId={task.id} /></div>
             <div className="col-span-1 space-y-6">
                 <div className="bg-gray-800/50 p-4 rounded-md border border-gray-800 space-y-4 text-sm">
                     <div>

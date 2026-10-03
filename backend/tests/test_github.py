@@ -24,7 +24,7 @@ def test_github_auth_and_repo(client: TestClient):
             gh_inst.get_user_profile = AsyncMock(return_value={"id": 123, "login": "testuser", "avatar_url": "url"})
             
             c = client.post("/api/v1/github/connect", json={"code": "123", "state": "abc"}, headers=headers)
-            assert c.status_code == 200
+            assert c.status_code == 200, c.text
 
     # 3. Status connected
     st2 = client.get("/api/v1/github/status", headers=headers)
@@ -56,7 +56,7 @@ def test_github_auth_and_repo(client: TestClient):
         res2 = client.post("/api/v1/auth/login", json={"email": "u2@example.com", "password": "pass"})
         token2 = res2.json()["access_token"]
         headers2 = {"Authorization": f"Bearer {token2}"}
-    org_res = client.post("/api/v1/organizations", json={"name": "Test Org"}, headers=headers2)
+    org_res = client.post("/api/v1/organizations", json={"name": "Test Org 2", "slug": "test-org-2"}, headers=headers2)
     if org_res.status_code == 201:
         headers2["X-Organization-Id"] = org_res.json()["id"]
         
