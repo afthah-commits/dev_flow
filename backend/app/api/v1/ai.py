@@ -1,0 +1,169 @@
+from fastapi import APIRouter, Depends, HTTPException, Query
+from sqlalchemy.orm import Session
+from typing import Any, List
+from uuid import UUID
+import json
+
+from app.api import deps
+from app.models.user import User
+from app.models.project import Project
+from app.models.ai_conversation import AIConversation, AIMessage
+from app.schemas.ai import (
+    AIConversationCreate, AIConversationResponse, AIChatRequest, AIMessageResponse,
+    AIActionResponse, TaskSuggestion, TaskBreakdown, AITaskDescriptionRequest, AITaskBreakdownRequest
+)
+from app.services.ai.service import get_ai_provider, SYSTEM_PROMPT
+from app.services.ai.context import build_project_context
+
+router = APIRouter()
+
+def _get_conversation(db: Session, conv_id: UUID, user_id: UUID) -> AIConversation:
+    conv = db.query(AIConversation).filter(AIConversation.id == conv_id, AIConversation.user_id == user_id).first()
+    if not conv:
+        raise HTTPException(status_code=404, detail="Conversation not found")
+    return conv
+
+@router.get("/conversations", response_model=List[AIConversationResponse])
+def list_conversations(
+    *,
+    db: Session = Depends(deps.get_db),
+    current_user: User = Depends(deps.get_current_user),
+    project_id: UUID = None
+) -> Any:
+    q = db.query(AIConversation).filter(AIConversation.user_id == current_user.id)
+    if project_id:
+        q = q.filter(AIConversation.project_id == project_id)
+    return q.order_by(AIConversation.updated_at.desc()).all()
+
+@router.post("/conversations", response_model=AIConversationResponse)
+def create_conversation(
+    *,
+    db: Session = Depends(deps.get_db),
+    current_user: User = Depends(deps.get_current_user),
+    request: AIConversationCreate
+) -> Any:
+    if request.project_id:
+        proj = db.query(Project).filter(Project.id == request.project_id).first()
+        if not proj:
+            raise HTTPException(status_code=404, detail="Project not found")
+        deps.require_organization_member(db, current_user.id, proj.organization_id)
+            
+    conv = AIConversation(
+        user_id=current_user.id,
+        project_id=request.project_id,
+        title=request.title
+    )
+    db.add(conv)
+    db.commit()
+    db.refresh(conv)
+    return conv
+
+@router.get("/conversations/{conversation_id}", response_model=AIConversationResponse)
+def get_conversation(
+    *,
+    db: Session = Depends(deps.get_db),
+    current_user: User = Depends(deps.get_current_user),
+    conversation_id: UUID
+) -> Any:
+    return _get_conversation(db, conversation_id, current_user.id)
+
+@router.delete("/conversations/{conversation_id}")
+def delete_conversation(
+    *,
+    db: Session = Depends(deps.get_db),
+    current_user: User = Depends(deps.get_current_user),
+    conversation_id: UUID
+) -> Any:
+    conv = _get_conversation(db, conversation_id, current_user.id)
+    db.delete(conv)
+    db.commit()
+    return {"message": "Deleted"}
+
+@router.post("/conversations/{conversation_id}/messages", response_model=AIMessageResponse)
+async def send_message(
+    *,
+    db: Session = Depends(deps.get_db),
+    current_user: User = Depends(deps.get_current_user),
+    conversation_id: UUID,
+    request: AIChatRequest
+) -> Any:
+    conv = _get_conversation(db, conversation_id, current_user.id)
+    
+    # Store user message
+    user_msg = AIMessage(conversation_id=conv.id, role="user", content=request.message)
+    db.add(user_msg)
+    db.commit()
+    
+    # Build context
+    context_str = ""
+    if conv.project_id:
+        context_str = await build_project_context(db, conv.project_id, current_user.id)
+        
+    full_prompt = f"{SYSTEM_PROMPT}\\n\\n{context_str}"
+    
+    # Get history (last 10 messages)
+    history = db.query(AIMessage).filter(AIMessage.conversation_id == conv.id).order_by(AIMessage.created_at.asc()).limit(10).all()
+    api_messages = [{"role": m.role, "content": m.content} for m in history]
+    
+    # Call AI
+    provider = get_ai_provider()
+    try:
+        reply = await provider.chat(messages=api_messages, system_prompt=full_prompt)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+        
+    ai_msg = AIMessage(conversation_id=conv.id, role="assistant", content=reply)
+    db.add(ai_msg)
+    db.commit()
+    db.refresh(ai_msg)
+    
+    return ai_msg
+
+# --- Quick Actions (Structured Outputs) ---
+@router.post("/projects/{project_id}/actions/task-suggestion", response_model=AIActionResponse)
+async def suggest_task(
+    *,
+    db: Session = Depends(deps.get_db),
+    current_user: User = Depends(deps.get_current_user),
+    project_id: UUID,
+    request: AITaskDescriptionRequest
+) -> Any:
+    context_str = await build_project_context(db, project_id, current_user.id)
+    schema = TaskSuggestion.model_json_schema()
+    
+    provider = get_ai_provider()
+    messages = [{"role": "user", "content": f"Generate a task for: {request.instruction}"}]
+    
+    try:
+        res = await provider.chat(messages=messages, system_prompt=f"{SYSTEM_PROMPT}\\n\\n{context_str}", json_schema=schema)
+        data = json.loads(res)
+        return AIActionResponse(result="Success", structured_data=data)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.post("/projects/{project_id}/actions/task-breakdown", response_model=AIActionResponse)
+async def breakdown_task(
+    *,
+    db: Session = Depends(deps.get_db),
+    current_user: User = Depends(deps.get_current_user),
+    project_id: UUID,
+    request: AITaskBreakdownRequest
+) -> Any:
+    # ensure task belongs to project
+    from app.models.task import Task
+    task = db.query(Task).filter(Task.id == request.task_id, Task.project_id == project_id).first()
+    if not task:
+        raise HTTPException(status_code=404, detail="Task not found")
+        
+    context_str = await build_project_context(db, project_id, current_user.id)
+    schema = TaskBreakdown.model_json_schema()
+    
+    provider = get_ai_provider()
+    messages = [{"role": "user", "content": f"Break down this task into subtasks: {task.title}\\n{task.description}"}]
+    
+    try:
+        res = await provider.chat(messages=messages, system_prompt=f"{SYSTEM_PROMPT}\\n\\n{context_str}", json_schema=schema)
+        data = json.loads(res)
+        return AIActionResponse(result="Success", structured_data=data)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
