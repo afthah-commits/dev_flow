@@ -8,6 +8,7 @@ class OrganizationRole(str, enum.Enum):
     OWNER = "OWNER"
     ADMIN = "ADMIN"
     MEMBER = "MEMBER"
+    CUSTOM = "CUSTOM"
 
 class Organization(Base):
     __tablename__ = "organizations"
@@ -31,6 +32,7 @@ class OrganizationMember(Base):
     organization_id = Column(Uuid, ForeignKey("organizations.id"), nullable=False, index=True)
     user_id = Column(Uuid, ForeignKey("users.id"), nullable=False, index=True)
     role = Column(Enum(OrganizationRole, native_enum=False), default=OrganizationRole.MEMBER, nullable=False)
+    custom_role_id = Column(Uuid, ForeignKey("roles.id", ondelete="SET NULL"), nullable=True)
     joined_at = Column(DateTime(timezone=True), server_default=func.now())
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
@@ -39,6 +41,7 @@ class OrganizationMember(Base):
 
     organization = relationship("Organization", back_populates="members")
     user = relationship("User")
+    custom_role = relationship("Role")
 
 class Team(Base):
     __tablename__ = "teams"
@@ -75,6 +78,7 @@ class OrganizationInvitation(Base):
     organization_id = Column(Uuid, ForeignKey("organizations.id"), nullable=False, index=True)
     email = Column(String, nullable=False, index=True)
     role = Column(Enum(OrganizationRole, native_enum=False), default=OrganizationRole.MEMBER, nullable=False)
+    custom_role_id = Column(Uuid, ForeignKey("roles.id", ondelete="SET NULL"), nullable=True)
     token_hash = Column(String, nullable=False, index=True)
     invited_by = Column(Uuid, ForeignKey("users.id"), nullable=False)
     expires_at = Column(DateTime(timezone=True), nullable=False)

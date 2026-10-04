@@ -11,11 +11,10 @@ from app.models.milestone import Milestone
 from app.models.audit import AuditEvent
 from app.models.time import TimeEntry, ActiveTimer
 from app.models.delivery import Release, ReleaseTask, ReleasePullRequest, Environment, Deployment, PipelineRun
-
-
-
 from app.models.collaboration import Comment, CommentReaction, Discussion, Attachment
 from app.models.automation import Automation, AutomationExecution, AutomationActionExecution
 from app.models.integration import Integration, IntegrationCredential, IntegrationLog
 from app.models.webhook import WebhookEndpoint, WebhookDelivery
 from app.models.api_key import APIKey
+from app.models.security import Role, RolePermission, UserSession, LoginEvent
+from app.models.job import Job, JobExecution

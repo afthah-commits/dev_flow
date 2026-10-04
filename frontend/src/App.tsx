@@ -12,6 +12,9 @@ import AutomationDetails from './pages/AutomationDetails';
 import Integrations from './pages/settings/Integrations';
 import Webhooks from './pages/settings/Webhooks';
 import ApiKeys from './pages/settings/ApiKeys';
+import Security from './pages/settings/Security';
+import Usage from './pages/settings/Usage';
+import AdminSystem from './pages/AdminSystem';
 import Dashboard from "./pages/Dashboard";
 import Profile from "./pages/Profile";
 import Projects from "./pages/Projects";
@@ -57,6 +60,9 @@ export default function App() {
               <Route path="/settings/integrations" element={<Integrations />} />
               <Route path="/settings/webhooks" element={<Webhooks />} />
               <Route path="/settings/api-keys" element={<ApiKeys />} />
+              <Route path="/settings/security" element={<Security />} />
+              <Route path="/settings/usage" element={<Usage />} />
+              <Route path="/admin/system" element={<AdminSystem />} />
 
           </Route>
         </Routes>
