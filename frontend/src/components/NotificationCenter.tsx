@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { notificationApi } from '../lib/notificationApi';
+import { useRealtimeEvent } from '../hooks/useRealtime';
 import { Notification } from '../types/notification';
 import { Link } from 'react-router-dom';
 

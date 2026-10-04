@@ -1,4 +1,4 @@
-﻿from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session
 from sqlalchemy import func, desc
 from datetime import datetime
 from typing import Dict, Any, List
@@ -31,7 +31,9 @@ def apply_filters(query, model, filters: ReportFilter, organization_id: str):
         
     return query
 
-def generate_report_data(db: Session, organization_id: str, report: Report, filters: ReportFilter) -> Dict[str, Any]:
+from uuid import UUID
+
+def generate_report_data(db: Session, organization_id: UUID, report: Report, filters: ReportFilter) -> Dict[str, Any]:
     if report.report_type == ReportType.PROJECT_OVERVIEW:
         query = db.query(
             Project.status, func.count(Project.id).label('count')

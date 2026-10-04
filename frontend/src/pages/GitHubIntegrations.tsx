@@ -25,7 +25,7 @@ export function GitHubSettings() {
 
   const handleConnect = () => {
     const clientId = import.meta.env.VITE_GITHUB_CLIENT_ID || 'dummy';
-    const redirectUri = import.meta.env.VITE_GITHUB_REDIRECT_URI || 'http://localhost:5173/settings/integrations/github/callback';
+    const redirectUri = import.meta.env.VITE_GITHUB_REDIRECT_URI || `${window.location.origin}/settings/integrations/github/callback`;
     const state = Math.random().toString(36).substring(7);
     sessionStorage.setItem('github_oauth_state', state);
     const url = `https://github.com/login/oauth/authorize?client_id=${clientId}&redirect_uri=${redirectUri}&scope=repo,read:user&state=${state}`;

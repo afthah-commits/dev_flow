@@ -1,7 +1,8 @@
-﻿import CollaborationAnalytics from './pages/CollaborationAnalytics';
+import CollaborationAnalytics from './pages/CollaborationAnalytics';
 import React from "react";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "./hooks/useAuth";
+import { OrganizationProvider } from "./contexts/OrganizationContext";
 import AuthLayout from "./layouts/AuthLayout";
 import DashboardLayout from "./layouts/DashboardLayout";
 import Login from "./pages/Login";
@@ -44,11 +45,13 @@ import ProductivityAnalytics from "./pages/ProductivityAnalytics";
 import OrganizationLayout from "./pages/OrganizationLayout";
 import ReleaseDetails from "./pages/ReleaseDetails";
 import DeliveryAnalytics from "./pages/DeliveryAnalytics";
+import { JobCenter } from "./pages/jobs/JobCenter";
 
 export default function App() {
   return (
     <BrowserRouter>
       <AuthProvider>
+        <OrganizationProvider>
         <Routes>
           <Route element={<AuthLayout />}>
             <Route path="/login" element={<Login />} />
@@ -58,6 +61,7 @@ export default function App() {
           
           <Route element={<DashboardLayout />}>
             <Route path="/" element={<Dashboard />} />
+            <Route path="/jobs" element={<JobCenter />} />
             <Route path="/profile" element={<Profile />} />
             <Route path="/time" element={<Timesheet />} />
             <Route path="/projects" element={<Projects />} />
@@ -100,6 +104,7 @@ export default function App() {
 
           </Route>
         </Routes>
+        </OrganizationProvider>
       </AuthProvider>
     </BrowserRouter>
   );

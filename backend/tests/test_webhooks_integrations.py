@@ -9,11 +9,12 @@ def test_webhooks_integrations(client, db):
     # Create Org
     org_res = client.post("/api/v1/organizations", json={"name": "WHOrg"}, headers=headers)
     org_id = org_res.json()["id"]
+    headers["X-Organization-Id"] = org_id
     
     # Webhook
     wh_res = client.post(f"/api/v1/webhooks?organization_id={org_id}", json={"name": "MyWH", "url": "http://mock", "active": True, "subscribed_events": ["*"]}, headers=headers)
     assert wh_res.status_code == 200
     
     # Integration
-    int_res = client.post(f"/api/v1/integrations?organization_id={org_id}", json={"provider": "slack", "name": "Slack", "status": "ACTIVE"}, headers=headers)
+    int_res = client.post("/api/v1/integrations", json={"provider": "slack", "name": "Slack", "status": "ACTIVE"}, headers=headers)
     assert int_res.status_code == 200

@@ -1,4 +1,4 @@
-﻿from fastapi import APIRouter, Depends, HTTPException, Header, Query
+from fastapi import APIRouter, Depends, HTTPException, Header, Query
 from sqlalchemy.orm import Session
 from typing import Any, List, Optional
 from uuid import UUID
@@ -133,7 +133,7 @@ def get_report_data(
     if not report:
         raise HTTPException(status_code=404, detail="Report not found")
     
-    data = report_service.generate_report_data(db, str(org_id), report, filters)
+    data = report_service.generate_report_data(db, org_id, report, filters)
     return {"data": data}
 
 @router.post("/{report_id}/export")
@@ -153,6 +153,6 @@ def export_report_data(
     if not report:
         raise HTTPException(status_code=404, detail="Report not found")
     
-    data = report_service.generate_report_data(db, str(org_id), report, filters)
+    data = report_service.generate_report_data(db, org_id, report, filters)
     return {"data": data, "format": format}
 

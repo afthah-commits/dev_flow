@@ -1,4 +1,4 @@
-﻿from fastapi import APIRouter, Depends, HTTPException, Request, Header
+from fastapi import APIRouter, Depends, HTTPException, Request, Header
 from sqlalchemy.orm import Session
 from typing import List, Optional
 import uuid
@@ -107,7 +107,7 @@ def update_integration(
         actor_user_id=current_user.id,
         event_type="integration.updated", 
         entity_type="INTEGRATION", 
-        entity_id=integration.id
+        entity_id=uuid.UUID(integration.id)
     ))
     db.commit()
     db.refresh(integration)
@@ -135,7 +135,7 @@ def delete_integration(
         actor_user_id=current_user.id,
         event_type="integration.deleted", 
         entity_type="INTEGRATION", 
-        entity_id=integration.id
+        entity_id=uuid.UUID(integration.id)
     ))
     db.commit()
 
@@ -156,7 +156,7 @@ def enable_integration(
         raise HTTPException(status_code=404, detail="Integration not found")
         
     integration.enabled = True
-    db.add(AuditEvent(organization_id=org_id, actor_user_id=current_user.id, event_type="integration.enabled", entity_id=integration.id))
+    db.add(AuditEvent(organization_id=org_id, actor_user_id=current_user.id, event_type="integration.enabled", entity_id=uuid.UUID(integration.id)))
     db.commit()
     db.refresh(integration)
     return integration
@@ -178,7 +178,7 @@ def disable_integration(
         raise HTTPException(status_code=404, detail="Integration not found")
         
     integration.enabled = False
-    db.add(AuditEvent(organization_id=org_id, actor_user_id=current_user.id, event_type="integration.disabled", entity_id=integration.id))
+    db.add(AuditEvent(organization_id=org_id, actor_user_id=current_user.id, event_type="integration.disabled", entity_id=uuid.UUID(integration.id)))
     db.commit()
     db.refresh(integration)
     return integration
@@ -199,7 +199,7 @@ def test_integration(
     if not integration:
         raise HTTPException(status_code=404, detail="Integration not found")
         
-    db.add(AuditEvent(organization_id=org_id, actor_user_id=current_user.id, event_type="integration.tested", entity_id=integration.id))
+    db.add(AuditEvent(organization_id=org_id, actor_user_id=current_user.id, event_type="integration.tested", entity_id=uuid.UUID(integration.id)))
     db.commit()
     
     return {"success": True, "message": f"Successfully tested connection to {integration.provider}"}

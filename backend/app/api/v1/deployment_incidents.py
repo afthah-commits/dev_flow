@@ -47,9 +47,8 @@ def update_incident(incident_id: UUID, inc_in: DeploymentIncidentUpdate, db: Ses
     for k, v in inc_in.model_dump(exclude_unset=True).items():
         setattr(inc, k, v)
     if inc_in.status == DeploymentIncidentStatus.RESOLVED:
-        from datetime import datetime
-        import pytz
-        inc.resolved_at = datetime.now(pytz.utc)
+        from datetime import datetime, timezone
+        inc.resolved_at = datetime.now(timezone.utc)
     db.add(AuditEvent(organization_id=inc.organization_id, actor_user_id=current_user.id, event_type='incident.updated', entity_type='incident', entity_id=inc.id))
     db.commit()
     db.refresh(inc)

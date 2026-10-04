@@ -6,9 +6,12 @@ import { useOrganization } from "../contexts/OrganizationContext";
 import { NotificationCenter } from "../components/NotificationCenter";
 import { TimerWidget } from "../components/TimerWidget";
 
+import { useRealtimeConnection } from "../hooks/useRealtime";
+
 export default function DashboardLayout() {
   const { user, isAuthenticated, isLoading: isAuthLoading, logout } = useAuth();
   const { currentOrganization, organizations, setCurrentOrganization, isLoading: isOrgLoading } = useOrganization();
+  useRealtimeConnection(currentOrganization?.id);
 
   if (isAuthLoading || isOrgLoading) {
     return <div className="min-h-screen bg-gray-950 flex items-center justify-center text-gray-200">Loading...</div>;

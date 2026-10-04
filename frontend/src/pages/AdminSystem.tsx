@@ -4,9 +4,11 @@ import { Server, Activity, ShieldAlert, Cpu } from 'lucide-react';
 
 export default function AdminSystem() {
   const [stats, setStats] = useState<any>(null);
+  const [jobStats, setJobStats] = useState<any>(null);
   const [error, setError] = useState('');
 
   useEffect(() => {
+    api.get('/jobs/stats').then(res => setJobStats(res.data)).catch(err => console.error(err));
     api.get('/admin/system')
       .then(res => setStats(res.data))
       .catch(err => setError('Access denied or failed to load.'));
@@ -83,6 +85,21 @@ export default function AdminSystem() {
           </tbody>
         </table>
       </div>
-    </div>
+    
+      <div className="bg-gray-900 border border-gray-800 p-5 rounded-lg md:col-span-3 mt-6">
+        <h3 className="text-lg font-medium text-white mb-4 flex items-center gap-2">
+          <Activity className="text-blue-400 w-5 h-5" /> Job Operations
+        </h3>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+            <div><div className="text-gray-500">Queue Depth</div><div className="text-xl text-white">{jobStats?.queue_depth || 0}</div></div>
+            <div><div className="text-gray-500">24h Throughput</div><div className="text-xl text-white">{jobStats?.throughput_24h || 0}</div></div>
+            <div><div className="text-gray-500">Success Rate</div><div className="text-xl text-green-400">{jobStats?.success_rate_24h || 0}%</div></div>
+            <div><div className="text-gray-500">Failure Rate</div><div className="text-xl text-red-400">{jobStats?.failure_rate_24h || 0}%</div></div>
+            <div><div className="text-gray-500">Avg Execution Time</div><div className="text-xl text-white">{jobStats?.avg_execution_time_sec || 0}s</div></div>
+            <div><div className="text-gray-500">Active (Running)</div><div className="text-xl text-blue-400">{jobStats?.RUNNING || 0}</div></div>
+            <div><div className="text-gray-500">Retrying</div><div className="text-xl text-yellow-400">{jobStats?.RETRYING || 0}</div></div>
+        </div>
+      </div>
+</div>
   );
 }

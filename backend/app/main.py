@@ -1,7 +1,7 @@
-﻿from fastapi import FastAPI
+from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.core.config import settings
-from app.api.v1 import auth, projects, tasks, dashboard, github, ai, analytics, notifications, organizations, teams, invitations, labels, templates, sprints, milestones, backlog, roadmap, audit, time
+from app.api.v1 import auth, projects, tasks, dashboard, github, ai, analytics, notifications, organizations, teams, invitations, labels, templates, sprints, milestones, backlog, roadmap, audit, time, jobs, realtime
 from app.api.v1.delivery import (
     project_releases_router, releases_router, environments_router,
     project_deployments_router, deployments_router, pipelines_router,
@@ -21,10 +21,18 @@ app = FastAPI(
     openapi_url=f"{settings.API_V1_STR}/openapi.json"
 )
 
+from app.core.exceptions import add_exception_handlers
+from app.core.middleware import CorrelationIdMiddleware
+
+add_exception_handlers(app)
+app.add_middleware(CorrelationIdMiddleware)
+
+
 # Set all CORS enabled origins
+allowed_origins = [origin.strip() for origin in settings.ALLOWED_ORIGINS.split(",") if origin.strip()] if hasattr(settings, 'ALLOWED_ORIGINS') else [settings.FRONTEND_URL]
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[settings.FRONTEND_URL],
+    allow_origins=allowed_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -75,6 +83,8 @@ app.include_router(integrations.router, prefix=f"{settings.API_V1_STR}/integrati
 app.include_router(webhooks.router, prefix=f"{settings.API_V1_STR}/webhooks", tags=["webhooks"])
 app.include_router(api_keys.router, prefix=f"{settings.API_V1_STR}/api_keys", tags=["api_keys"])
 app.include_router(public.router, prefix=f"/api/public/v1", tags=["public"])
+app.include_router(jobs.router, prefix=f"{settings.API_V1_STR}/jobs", tags=["jobs"])
+app.include_router(realtime.router, prefix=f"{settings.API_V1_STR}/realtime", tags=["realtime"])
 
 # Phase 21: DevOps, Deployment & Infrastructure Intelligence
 app.include_router(environments.router, prefix=f"{settings.API_V1_STR}/environments", tags=["environments-infra"])
@@ -84,8 +94,40 @@ app.include_router(infrastructure.router, prefix=f"{settings.API_V1_STR}/infrast
 
 
 
-@app.get("/health")
-def health_check():
-    return {"status": "ok"}
+import time
+from sqlalchemy import text
+from app.api import deps
+from fastapi import Depends
+from sqlalchemy.orm import Session
 
+start_time = time.time()
+
+@app.get("/health/live", tags=["health"])
+def health_live():
+    return {"status": "ok", "uptime_seconds": time.time() - start_time}
+
+@app.get("/health/ready", tags=["health"])
+def health_ready(db: Session = Depends(deps.get_db)):
+    try:
+        db.execute(text("SELECT 1"))
+        return {"status": "ok", "database": "ok", "uptime_seconds": time.time() - start_time}
+    except Exception as e:
+        from fastapi import HTTPException
+        raise HTTPException(status_code=503, detail="Database not ready")
+
+@app.get("/health", tags=["health"])
+def health_check(db: Session = Depends(deps.get_db)):
+    return health_ready(db)
+
+
+from app.jobs.scheduler import scheduler
+
+@app.on_event('startup')
+def startup_event():
+    if settings.JOB_SCHEDULER_ENABLED:
+        scheduler.start()
+
+@app.on_event('shutdown')
+def shutdown_event():
+    scheduler.stop()
 

@@ -7,6 +7,7 @@ import { Project } from "../types/project";
 import { Task, TaskStats, TaskCreate, TaskStatus } from "../types/task";
 import { Button } from "../components/ui/Button";
 import { KanbanBoard } from "../components/KanbanBoard";
+import { useRealtimeEvent } from '../hooks/useRealtime';
 import { TaskForm } from "../components/TaskForm";
 import { TaskDetailModal } from "../components/TaskDetailModal";
 import { ProjectGitHub } from "../components/ProjectGitHub";
