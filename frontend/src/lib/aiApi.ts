@@ -91,7 +91,18 @@ export const aiApi = {
   getTaskPriorities: async (projectId: string) => {
     const res = await api.get(`/ai/projects/${projectId}/task-priorities`);
     return res.data;
+  },
+  askKnowledge: async (question: string, spaceId?: string) => {
+    const payload: any = { question };
+    if (spaceId) payload.space_id = spaceId;
+    const res = await api.post(`/ai/knowledge/ask`, payload);
+    return res.data;
+  },
+  summarizeKnowledgeDocument: async (documentId: string) => {
+    const res = await api.post(`/ai/knowledge/documents/${documentId}/summary`);
+    return res.data;
   }
 };
+
 
 

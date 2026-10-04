@@ -24,6 +24,8 @@ import DeploymentDetails from './pages/infrastructure/DeploymentDetails';
 import Services from './pages/infrastructure/Services';
 import Incidents from './pages/infrastructure/Incidents';
 import InfrastructureAnalytics from './pages/infrastructure/InfrastructureAnalytics';
+import KnowledgeBase from './pages/KnowledgeBase';
+import KnowledgeAnalytics from './pages/KnowledgeAnalytics';
 
 import Dashboards from './pages/Dashboards';
 import Reports from './pages/Reports';
@@ -86,7 +88,11 @@ export default function App() {
             <Route path="/analytics/productivity" element={<ProductivityAnalytics />} />
             <Route path="/analytics/delivery" element={<DeliveryAnalytics />} />
             <Route path="/analytics/collaboration" element={<CollaborationAnalytics />} />
-              <Route path="/automations" element={<Automations />} />
+            <Route path="/analytics/knowledge" element={<KnowledgeAnalytics />} />
+            <Route path="/knowledge" element={<KnowledgeBase />} />
+            <Route path="/knowledge/:spaceId" element={<KnowledgeBase />} />
+            <Route path="/knowledge/:spaceId/doc/:docId" element={<KnowledgeBase />} />
+            <Route path="/automations" element={<Automations />} />
               <Route path="/automations/:id" element={<AutomationDetails />} />
               <Route path="/settings/integrations" element={<Integrations />} />
               <Route path="/settings/webhooks" element={<Webhooks />} />

@@ -246,3 +246,20 @@ class TaskPriorityScore(BaseModel):
     score: float
     priority_level: str
     reasons: List[str]
+
+# Phase 27
+class AIKnowledgeAsk(BaseModel):
+    question: str
+    space_id: Optional[UUID] = None
+    project_id: Optional[UUID] = None
+
+class AIKnowledgeAnswer(BaseModel):
+    answer: str
+    sources: List[str]
+    confidence: str
+
+class AIKnowledgeSummary(BaseModel):
+    summary: str
+    key_points: List[str]
+    risks: List[str]
+    related_topics: List[str]

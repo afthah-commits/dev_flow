@@ -24,3 +24,5 @@ from app.models.governance import OrganizationSecurityPolicy, OrganizationDomain
 from app.models.infrastructure import DeploymentApproval, EnvironmentVariable, ServiceHealth, DeploymentIncident
 from app.models.ai_project_memory import AIProjectMemory
 from app.models.ai_usage import AIUsage
+
+from app.models.knowledge import KnowledgeSpace, KnowledgeDocument, KnowledgeDocumentVersion, KnowledgeTag, KnowledgeDocumentLink, KnowledgeDocumentWatcher
