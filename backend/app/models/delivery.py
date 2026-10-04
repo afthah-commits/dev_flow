@@ -76,13 +76,30 @@ class ReleasePullRequest(Base):
     
     release = relationship("Release", back_populates="pull_requests")
 
+
+class EnvironmentType(str, enum.Enum):
+    DEVELOPMENT = "DEVELOPMENT"
+    STAGING = "STAGING"
+    PRODUCTION = "PRODUCTION"
+    PREVIEW = "PREVIEW"
+
+class EnvironmentStatus(str, enum.Enum):
+    ACTIVE = "ACTIVE"
+    INACTIVE = "INACTIVE"
+    DEGRADED = "DEGRADED"
+    DOWN = "DOWN"
+
 class Environment(Base):
     __tablename__ = "environments"
     id = Column(Uuid, primary_key=True, default=uuid.uuid4, index=True)
     organization_id = Column(Uuid, ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False, index=True)
     project_id = Column(Uuid, ForeignKey("projects.id", ondelete="CASCADE"), nullable=False, index=True)
-    
+
     name = Column(String, nullable=False)
+    slug = Column(String, nullable=True)
+    environment_type = Column(Enum(EnvironmentType, native_enum=False), default=EnvironmentType.DEVELOPMENT, nullable=False)
+    status = Column(Enum(EnvironmentStatus, native_enum=False), default=EnvironmentStatus.ACTIVE, nullable=False)
+    description = Column(Text, nullable=True)
     url = Column(String, nullable=True)
     branch = Column(String, nullable=True)
     is_default = Column(Boolean, default=False, nullable=False)
@@ -97,11 +114,14 @@ class Environment(Base):
 
 class DeploymentStatus(str, enum.Enum):
     QUEUED = "QUEUED"
+    BUILDING = "BUILDING"
+    DEPLOYING = "DEPLOYING"
     RUNNING = "RUNNING"
     SUCCESS = "SUCCESS"
     FAILED = "FAILED"
     CANCELLED = "CANCELLED"
     ROLLED_BACK = "ROLLED_BACK"
+
 
 class DeploymentProvider(str, enum.Enum):
     MOCK = "MOCK"
@@ -115,6 +135,11 @@ class Deployment(Base):
     project_id = Column(Uuid, ForeignKey("projects.id", ondelete="CASCADE"), nullable=False, index=True)
     release_id = Column(Uuid, ForeignKey("releases.id", ondelete="SET NULL"), nullable=True, index=True)
     environment_id = Column(Uuid, ForeignKey("environments.id", ondelete="SET NULL"), nullable=True, index=True)
+    
+    deployment_key = Column(String, nullable=True)
+    version = Column(String, nullable=True)
+    branch = Column(String, nullable=True)
+
     
     status = Column(Enum(DeploymentStatus, native_enum=False), default=DeploymentStatus.QUEUED, nullable=False, index=True)
     deployment_url = Column(String, nullable=True)

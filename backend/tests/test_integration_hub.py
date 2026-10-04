@@ -1,4 +1,4 @@
-﻿import pytest
+import pytest
 from uuid import uuid4
 
 def test_integration_hub_apis(client, db):
@@ -6,11 +6,11 @@ def test_integration_hub_apis(client, db):
     response = client.post("/api/v1/auth/register", json={
         "email": "inthub@example.com",
         "password": "Password123!",
-        "full_name": "Hub User"
+        "name": "Hub User"
     })
     
-    login_response = client.post("/api/v1/auth/login", data={
-        "username": "inthub@example.com",
+    login_response = client.post("/api/v1/auth/login", json={
+        "email": "inthub@example.com",
         "password": "Password123!"
     })
     token = login_response.json()["access_token"]

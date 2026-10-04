@@ -3,7 +3,7 @@ from datetime import datetime
 from uuid import UUID
 from pydantic import BaseModel, Field
 
-from app.models.delivery import ReleaseStatus, ReleaseType, DeploymentStatus, DeploymentProvider, PipelineStatus
+from app.models.delivery import ReleaseStatus, ReleaseType, DeploymentStatus, DeploymentProvider, PipelineStatus, EnvironmentType, EnvironmentStatus
 
 class ReleaseBase(BaseModel):
     name: str
@@ -52,6 +52,10 @@ class ReleaseReadiness(BaseModel):
 
 class EnvironmentBase(BaseModel):
     name: str
+    slug: Optional[str] = None
+    environment_type: EnvironmentType = EnvironmentType.DEVELOPMENT
+    status: EnvironmentStatus = EnvironmentStatus.ACTIVE
+    description: Optional[str] = None
     url: Optional[str] = None
     branch: Optional[str] = None
     is_default: bool = False
@@ -62,6 +66,10 @@ class EnvironmentCreate(EnvironmentBase):
 
 class EnvironmentUpdate(BaseModel):
     name: Optional[str] = None
+    slug: Optional[str] = None
+    environment_type: Optional[EnvironmentType] = None
+    status: Optional[EnvironmentStatus] = None
+    description: Optional[str] = None
     url: Optional[str] = None
     branch: Optional[str] = None
     is_default: Optional[bool] = None
@@ -80,6 +88,9 @@ class EnvironmentResponse(EnvironmentBase):
 class DeploymentBase(BaseModel):
     environment_id: Optional[UUID] = None
     provider: DeploymentProvider = DeploymentProvider.MOCK
+    deployment_key: Optional[str] = None
+    version: Optional[str] = None
+    branch: Optional[str] = None
 
 class DeploymentCreate(DeploymentBase):
     pass
@@ -89,6 +100,9 @@ class DeploymentResponse(DeploymentBase):
     organization_id: UUID
     project_id: UUID
     release_id: Optional[UUID] = None
+    deployment_key: Optional[str] = None
+    version: Optional[str] = None
+    branch: Optional[str] = None
     status: DeploymentStatus
     deployment_url: Optional[str] = None
     commit_sha: Optional[str] = None

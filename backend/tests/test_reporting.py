@@ -6,11 +6,11 @@ def test_reports_crud(client, db):
     response = client.post("/api/v1/auth/register", json={
         "email": "reportuser@example.com",
         "password": "Password123!",
-        "full_name": "Report User"
+        "name": "Report User"
     })
     
-    login_response = client.post("/api/v1/auth/login", data={
-        "username": "reportuser@example.com",
+    login_response = client.post("/api/v1/auth/login", json={
+        "email": "reportuser@example.com",
         "password": "Password123!"
     })
     token = login_response.json()["access_token"]

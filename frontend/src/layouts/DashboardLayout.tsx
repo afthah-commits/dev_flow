@@ -39,6 +39,16 @@ export default function DashboardLayout() {
         <div className="flex items-center space-x-6">
           <Link to="/" className="hover:text-white transition-colors">Dashboard</Link>
           <Link to="/projects" className="hover:text-white transition-colors">Projects</Link>
+          <div className="relative group">
+            <span className="hover:text-white transition-colors cursor-pointer">Infrastructure</span>
+            <div className="absolute hidden group-hover:block bg-gray-800 p-2 rounded shadow-lg z-10 w-40">
+              <Link to="/infrastructure/environments" className="block text-sm py-1 hover:text-white">Environments</Link>
+              <Link to="/infrastructure/deployments" className="block text-sm py-1 hover:text-white">Deployments</Link>
+              <Link to="/infrastructure/services" className="block text-sm py-1 hover:text-white">Services</Link>
+              <Link to="/infrastructure/incidents" className="block text-sm py-1 hover:text-white">Incidents</Link>
+              <Link to="/infrastructure/analytics" className="block text-sm py-1 hover:text-white">Analytics</Link>
+            </div>
+          </div>
           <Link to="/organization" className="hover:text-white transition-colors">Organization</Link>
           <Link to="/time" className="hover:text-white transition-colors">Time</Link>
           <Link to="/analytics/productivity" className="hover:text-white transition-colors">Productivity</Link>

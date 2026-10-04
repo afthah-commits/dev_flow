@@ -15,6 +15,15 @@ import ApiKeys from './pages/settings/ApiKeys';
 import Security from './pages/settings/Security';
 import Usage from './pages/settings/Usage';
 import AdminSystem from './pages/AdminSystem';
+
+import Environments from './pages/infrastructure/Environments';
+import EnvironmentDetails from './pages/infrastructure/EnvironmentDetails';
+import Deployments from './pages/infrastructure/Deployments';
+import DeploymentDetails from './pages/infrastructure/DeploymentDetails';
+import Services from './pages/infrastructure/Services';
+import Incidents from './pages/infrastructure/Incidents';
+import InfrastructureAnalytics from './pages/infrastructure/InfrastructureAnalytics';
+
 import Dashboards from './pages/Dashboards';
 import Reports from './pages/Reports';
 import AdminCompliance from './pages/AdminCompliance';
@@ -79,6 +88,15 @@ export default function App() {
               <Route path="/settings/security" element={<Security />} />
               <Route path="/settings/usage" element={<Usage />} />
               <Route path="/admin/system" element={<AdminSystem />} />
+
+              <Route path="/infrastructure/environments" element={<Environments />} />
+              <Route path="/infrastructure/environments/:id" element={<EnvironmentDetails />} />
+              <Route path="/infrastructure/deployments" element={<Deployments />} />
+              <Route path="/infrastructure/deployments/:id" element={<DeploymentDetails />} />
+              <Route path="/infrastructure/services" element={<Services />} />
+              <Route path="/infrastructure/incidents" element={<Incidents />} />
+              <Route path="/infrastructure/analytics" element={<InfrastructureAnalytics />} />
+
 
           </Route>
         </Routes>

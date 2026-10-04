@@ -1,4 +1,4 @@
-﻿import pytest
+import pytest
 from uuid import uuid4
 
 def test_governance_apis(client, db):
@@ -6,13 +6,15 @@ def test_governance_apis(client, db):
     response = client.post("/api/v1/auth/register", json={
         "email": "govuser@example.com",
         "password": "Password123!",
-        "full_name": "Gov User"
+        "name": "Gov User"
     })
+    print("REG:", response.status_code, response.text)
     
-    login_response = client.post("/api/v1/auth/login", data={
-        "username": "govuser@example.com",
+    login_response = client.post("/api/v1/auth/login", json={
+        "email": "govuser@example.com",
         "password": "Password123!"
     })
+    print("LOG:", login_response.status_code, login_response.text)
     token = login_response.json()["access_token"]
     headers = {"Authorization": f"Bearer {token}"}
     

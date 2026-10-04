@@ -8,6 +8,9 @@ from app.api.v1.delivery import (
     delivery_metrics_router
 )
 from app.api.v1 import collaboration, search, ws
+
+from app.api.v1 import environments, deployments, deployment_incidents, infrastructure
+
 from app.api.v1 import reports, dashboards, governance, privacy
 from app.api.v1 import automations, integrations, webhooks, api_keys
 from app.api.public_v1 import public
@@ -63,8 +66,8 @@ app.include_router(collaboration.attachments_router, prefix=f"{settings.API_V1_S
 app.include_router(search.router, prefix=f"{settings.API_V1_STR}/search", tags=["search"])
 app.include_router(ws.router, prefix=f"{settings.API_V1_STR}/ws", tags=["websocket"])
 
-app.include_router(governance.router, prefix="/governance", tags=["governance"])
-app.include_router(privacy.router, prefix="/privacy", tags=["privacy"])
+app.include_router(governance.router, prefix=f"{settings.API_V1_STR}/governance", tags=["governance"])
+app.include_router(privacy.router, prefix=f"{settings.API_V1_STR}/privacy", tags=["privacy"])
 app.include_router(reports.router, prefix=f"{settings.API_V1_STR}/reports", tags=["reports"])
 app.include_router(dashboards.router, prefix=f"{settings.API_V1_STR}/dashboards", tags=["dashboards"])
 app.include_router(automations.router, prefix=f"{settings.API_V1_STR}/automations", tags=["automations"])
@@ -72,6 +75,13 @@ app.include_router(integrations.router, prefix=f"{settings.API_V1_STR}/integrati
 app.include_router(webhooks.router, prefix=f"{settings.API_V1_STR}/webhooks", tags=["webhooks"])
 app.include_router(api_keys.router, prefix=f"{settings.API_V1_STR}/api_keys", tags=["api_keys"])
 app.include_router(public.router, prefix=f"/api/public/v1", tags=["public"])
+
+# Phase 21: DevOps, Deployment & Infrastructure Intelligence
+app.include_router(environments.router, prefix=f"{settings.API_V1_STR}/environments", tags=["environments-infra"])
+app.include_router(deployments.router, prefix=f"{settings.API_V1_STR}/deployments", tags=["deployments-infra"])
+app.include_router(deployment_incidents.router, prefix=f"{settings.API_V1_STR}/deployment_incidents", tags=["deployment-incidents"])
+app.include_router(infrastructure.router, prefix=f"{settings.API_V1_STR}/infrastructure", tags=["infrastructure"])
+
 
 
 @app.get("/health")

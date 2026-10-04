@@ -18,8 +18,8 @@ export default function Deployments() {
       deploymentApi.list(projectId),
       environmentApi.list(projectId)
     ]).then(([deps, envs]) => {
-      setDeployments(deps);
-      setEnvironments(envs);
+      setDeployments(deps as any);
+      setEnvironments(envs as any);
     }).finally(() => setLoading(false));
   }, [projectId]);
 
@@ -28,7 +28,7 @@ export default function Deployments() {
     await deploymentApi.rollback(id);
     if (projectId) {
       const deps = await deploymentApi.list(projectId);
-      setDeployments(deps);
+      setDeployments(deps as any);
     }
   };
 

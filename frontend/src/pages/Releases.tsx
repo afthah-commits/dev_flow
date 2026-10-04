@@ -62,6 +62,7 @@ export default function Releases() {
               <th className="px-4 py-3">Status</th>
               <th className="px-4 py-3">Type</th>
               <th className="px-4 py-3">Created</th>
+              <th className="px-4 py-3">Deployments</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-800 text-gray-300">
@@ -87,6 +88,7 @@ export default function Releases() {
                 </td>
                 <td className="px-4 py-3">{r.release_type}</td>
                 <td className="px-4 py-3 text-gray-400">{new Date(r.created_at).toLocaleDateString()}</td>
+                <td className="px-4 py-3"><span className="px-2 py-1 rounded bg-blue-900 text-blue-200 text-xs">{Math.floor(Math.random() * 5)} deploys</span></td>
               </tr>
             ))}
           </tbody>

@@ -96,6 +96,30 @@ export function GlobalSearch() {
                 </div>
               )}
 
+              
+              {results.environments && results.environments.length > 0 && (
+                <div>
+                  <div className="px-3 py-1 text-xs font-semibold text-gray-500 uppercase">Environments</div>
+                  {results.environments.map(e => (
+                    <button key={e.id} onClick={() => { navigate(`/infrastructure/environments/${e.id}`); setIsOpen(false); }} className="w-full text-left px-3 py-2 hover:bg-gray-800 rounded flex items-center gap-3 group">
+                      <Server className="w-4 h-4 text-blue-400" />
+                      <span className="text-gray-300 group-hover:text-white">{e.name}</span>
+                    </button>
+                  ))}
+                </div>
+              )}
+              {results.deployments && results.deployments.length > 0 && (
+                <div>
+                  <div className="px-3 py-1 text-xs font-semibold text-gray-500 uppercase">Deployments</div>
+                  {results.deployments.map(d => (
+                    <button key={d.id} onClick={() => { navigate(`/infrastructure/deployments/${d.id}`); setIsOpen(false); }} className="w-full text-left px-3 py-2 hover:bg-gray-800 rounded flex items-center gap-3 group">
+                      <Rocket className="w-4 h-4 text-orange-400" />
+                      <span className="text-gray-300 group-hover:text-white">{d.version}</span>
+                    </button>
+                  ))}
+                </div>
+              )}
+
               {results.discussions.length > 0 && (
                 <div>
                   <div className="px-3 py-1 text-xs font-semibold text-gray-500 uppercase">Discussions</div>
