@@ -13,6 +13,7 @@ import { TaskDetailModal } from "../components/TaskDetailModal";
 import { ProjectGitHub } from "../components/ProjectGitHub";
 import { ProjectAI } from "../components/ProjectAI";
 import { ProjectAnalytics } from "../components/ProjectAnalytics";
+import { ProjectIntelligence } from "../components/ProjectIntelligence";
 import { Sprints } from "../components/Sprints";
 import { ActivityTimeline } from "../components/ActivityTimeline";
 import { Backlog } from "../components/Backlog";
@@ -155,7 +156,7 @@ export default function ProjectDetails() {
           { id: 'activity', label: 'Activity' },
             { id: 'discussions', label: 'Discussions' },
           { id: 'github', label: 'GitHub' },
-          { id: 'ai', label: 'AI Assistant' },
+          { id: 'ai', label: 'Intelligence' },
           { id: 'analytics', label: 'Analytics' },
             { id: 'time', label: 'Time' }
         ].map(tab => (
@@ -282,7 +283,7 @@ export default function ProjectDetails() {
         )}
         
         {activeTab === 'github' && <ProjectGitHub project={project} />}
-        {activeTab === 'ai' && <ProjectAI project={project} />}
+        {activeTab === 'ai' && <ProjectIntelligence project={project} />}
         {activeTab === 'analytics' && <ProjectAnalytics project={project} />}
           {activeTab === 'time' && <ProjectTimeTab projectId={project.id} />}
         {activeTab === 'sprints' && <Sprints project={project} />}
