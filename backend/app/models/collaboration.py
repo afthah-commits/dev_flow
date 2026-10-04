@@ -35,6 +35,7 @@ class Comment(Base):
     is_edited = Column(Boolean, default=False)
     edited_at = Column(DateTime, nullable=True)
     is_pinned = Column(Boolean, default=False)
+    client_visible = Column(Boolean, default=False, nullable=False, server_default="0")
     
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), nullable=False)
     updated_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc), nullable=False)

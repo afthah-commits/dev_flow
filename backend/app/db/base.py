@@ -26,3 +26,5 @@ from app.models.ai_project_memory import AIProjectMemory
 from app.models.ai_usage import AIUsage
 
 from app.models.knowledge import KnowledgeSpace, KnowledgeDocument, KnowledgeDocumentVersion, KnowledgeTag, KnowledgeDocumentLink, KnowledgeDocumentWatcher
+
+from app.models.client import Client, ClientUser, ClientProjectAccess, ClientInvitation, ClientComment, ClientRequest, ClientActivity

@@ -84,6 +84,7 @@ class Task(Base):
     milestone_id = Column(Uuid, ForeignKey("milestones.id", ondelete="SET NULL"), nullable=True, index=True)
     task_key = Column(String, nullable=True, index=True, unique=True)
     parent_id = Column(Uuid, ForeignKey("tasks.id", ondelete="SET NULL"), nullable=True, index=True)
+    client_visible = Column(Boolean, default=False, nullable=False, server_default="0")
     title = Column(String, nullable=False, index=True)
     description = Column(Text, nullable=True)
     status = Column(Enum(TaskStatus, native_enum=False), default=TaskStatus.TODO, nullable=False, index=True)

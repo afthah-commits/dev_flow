@@ -1,5 +1,5 @@
 import uuid
-from sqlalchemy import Column, String, DateTime, ForeignKey, Uuid, JSON
+from sqlalchemy import Boolean, Column, String, DateTime, ForeignKey, Uuid, JSON
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 from app.db.base_class import Base
@@ -17,6 +17,7 @@ class AuditEvent(Base):
     metadata_ = Column("metadata", JSON, nullable=True) # use metadata_ to avoid conflict with Base.metadata
     ip_address = Column(String, nullable=True)
     user_agent = Column(String, nullable=True)
+    client_visible = Column(Boolean, default=False, nullable=False, server_default="0")
     created_at = Column(DateTime(timezone=True), server_default=func.now(), index=True)
 
     organization = relationship("Organization")

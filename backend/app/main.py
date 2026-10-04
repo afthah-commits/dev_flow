@@ -7,7 +7,7 @@ from app.api.v1.delivery import (
     project_deployments_router, deployments_router, pipelines_router,
     delivery_metrics_router
 )
-from app.api.v1 import collaboration, search, ws, knowledge
+from app.api.v1 import collaboration, search, ws, knowledge, clients, client_portal
 
 from app.api.v1 import environments, deployments, deployment_incidents, infrastructure
 
@@ -72,6 +72,8 @@ app.include_router(collaboration.comments_router, prefix=f"{settings.API_V1_STR}
 app.include_router(collaboration.discussions_router, prefix=f"{settings.API_V1_STR}", tags=["discussions"])
 app.include_router(collaboration.attachments_router, prefix=f"{settings.API_V1_STR}/attachments", tags=["attachments"])
 app.include_router(knowledge.router, prefix=f"{settings.API_V1_STR}/knowledge", tags=["knowledge"])
+app.include_router(clients.router, prefix=f"{settings.API_V1_STR}/clients", tags=["clients"])
+app.include_router(client_portal.router, prefix=f"{settings.API_V1_STR}/client-portal", tags=["client-portal"])
 app.include_router(search.router, prefix=f"{settings.API_V1_STR}/search", tags=["search"])
 app.include_router(ws.router, prefix=f"{settings.API_V1_STR}/ws", tags=["websocket"])
 

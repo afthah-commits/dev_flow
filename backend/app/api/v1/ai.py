@@ -721,3 +721,18 @@ async def summarize_knowledge_document(
         risks=[],
         related_topics=["Engineering", "Architecture"]
     )
+
+class ClientSummaryRequest(BaseModel):
+    client_id: str
+
+@router.post("/client/summary")
+async def generate_client_summary(
+    req: ClientSummaryRequest,
+    db: Session = Depends(deps.get_db),
+    current_user: User = Depends(deps.get_current_user)
+):
+    from app.services import client_service
+    client = client_service.verify_client_access(db, UUID(req.client_id), current_user.id)
+    
+    # We use MockAI Provider here.
+    return {"summary": "Based on the client-visible data, your project is on track. 2 requests are OPEN, and 5 tasks were completed."}

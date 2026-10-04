@@ -13,6 +13,8 @@ class SpaceVisibility(str, enum.Enum):
     PRIVATE = "PRIVATE"
     TEAM = "TEAM"
     ORGANIZATION = "ORGANIZATION"
+    CLIENTS = "CLIENTS"
+    PUBLIC = "PUBLIC"
 
 class EntityType(str, enum.Enum):
     PROJECT = "PROJECT"

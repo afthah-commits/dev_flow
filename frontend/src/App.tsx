@@ -24,6 +24,8 @@ import DeploymentDetails from './pages/infrastructure/DeploymentDetails';
 import Services from './pages/infrastructure/Services';
 import Incidents from './pages/infrastructure/Incidents';
 import InfrastructureAnalytics from './pages/infrastructure/InfrastructureAnalytics';
+import Clients from './pages/Clients';
+import ClientDashboard from './pages/ClientDashboard';
 import KnowledgeBase from './pages/KnowledgeBase';
 import KnowledgeAnalytics from './pages/KnowledgeAnalytics';
 
@@ -95,6 +97,11 @@ export default function App() {
             <Route path="/automations" element={<Automations />} />
               <Route path="/automations/:id" element={<AutomationDetails />} />
               <Route path="/settings/integrations" element={<Integrations />} />
+            <Route path="/settings/clients" element={<Clients />} />
+            <Route path="/client" element={<ClientDashboard />} />
+            <Route path="/client/knowledge" element={<ClientDashboard />} />
+            <Route path="/analytics/clients" element={<Clients />} />
+
               <Route path="/settings/webhooks" element={<Webhooks />} />
               <Route path="/settings/api-keys" element={<ApiKeys />} />
               <Route path="/settings/security" element={<Security />} />
