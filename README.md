@@ -1,4 +1,4 @@
-# DevFlow
+﻿# DevFlow
 
 DevFlow is a complete AI-assisted developer workspace. It combines project management, kanban boards, GitHub integration, analytics, and an integrated AI assistant into a single, cohesive application.
 
@@ -18,21 +18,21 @@ DevFlow is a complete AI-assisted developer workspace. It combines project manag
 ## Project Structure
 ```
 devflow/
-├── backend/            # FastAPI backend
-│   ├── alembic/        # Database migrations
-│   ├── app/            # Application code
-│   │   ├── api/        # REST endpoints
-│   │   ├── models/     # SQLAlchemy models
-│   │   ├── schemas/    # Pydantic schemas
-│   │   ├── services/   # Business logic (AI, GitHub, Analytics)
-│   ├── tests/          # Pytest suite
-├── frontend/           # React frontend
-│   ├── src/
-│   │   ├── components/ # React components
-│   │   ├── pages/      # Route pages
-│   │   ├── lib/        # API clients
-│   │   ├── types/      # TypeScript definitions
-├── docs/               # Technical documentation
+â”œâ”€â”€ backend/            # FastAPI backend
+â”‚   â”œâ”€â”€ alembic/        # Database migrations
+â”‚   â”œâ”€â”€ app/            # Application code
+â”‚   â”‚   â”œâ”€â”€ api/        # REST endpoints
+â”‚   â”‚   â”œâ”€â”€ models/     # SQLAlchemy models
+â”‚   â”‚   â”œâ”€â”€ schemas/    # Pydantic schemas
+â”‚   â”‚   â”œâ”€â”€ services/   # Business logic (AI, GitHub, Analytics)
+â”‚   â”œâ”€â”€ tests/          # Pytest suite
+â”œâ”€â”€ frontend/           # React frontend
+â”‚   â”œâ”€â”€ src/
+â”‚   â”‚   â”œâ”€â”€ components/ # React components
+â”‚   â”‚   â”œâ”€â”€ pages/      # Route pages
+â”‚   â”‚   â”œâ”€â”€ lib/        # API clients
+â”‚   â”‚   â”œâ”€â”€ types/      # TypeScript definitions
+â”œâ”€â”€ docs/               # Technical documentation
 ```
 
 ## Local Setup
@@ -69,3 +69,7 @@ Register a GitHub OAuth Application and configure the keys in the backend `.env`
 ## Troubleshooting
 - **Database issues**: Ensure `alembic upgrade head` ran successfully.
 - **CORS issues**: Ensure frontend matches the origins in backend settings.
+
+
+## Phase 18: Advanced Reporting + Custom Dashboards
+Phase 18 adds advanced, fully-customizable dashboards, reporting engines, data exports, and metric aggregations, protected under DevFlow's organization-scoped tenant models and custom roles.

@@ -1,4 +1,4 @@
-import CollaborationAnalytics from './pages/CollaborationAnalytics';
+﻿import CollaborationAnalytics from './pages/CollaborationAnalytics';
 import React from "react";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "./hooks/useAuth";
@@ -15,6 +15,8 @@ import ApiKeys from './pages/settings/ApiKeys';
 import Security from './pages/settings/Security';
 import Usage from './pages/settings/Usage';
 import AdminSystem from './pages/AdminSystem';
+import Dashboards from './pages/Dashboards';
+import Reports from './pages/Reports';
 import Dashboard from "./pages/Dashboard";
 import Profile from "./pages/Profile";
 import Projects from "./pages/Projects";
@@ -46,6 +48,8 @@ export default function App() {
             <Route path="/projects" element={<Projects />} />
             <Route path="/projects/new" element={<ProjectForm />} />
             <Route path="/projects/:projectId" element={<ProjectDetails />} />
+              <Route path="/dashboards" element={<Dashboards />} />
+              <Route path="/reports" element={<Reports />} />
             <Route path="/projects/:projectId/edit" element={<ProjectForm />} />
             <Route path="/projects/:projectId/releases/:releaseId" element={<ReleaseDetails />} />
             <Route path="/settings/integrations" element={<GitHubSettings />} />
@@ -70,3 +74,4 @@ export default function App() {
     </BrowserRouter>
   );
 }
+

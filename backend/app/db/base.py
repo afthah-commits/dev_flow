@@ -18,3 +18,5 @@ from app.models.webhook import WebhookEndpoint, WebhookDelivery
 from app.models.api_key import APIKey
 from app.models.security import Role, RolePermission, UserSession, LoginEvent
 from app.models.job import Job, JobExecution
+from app.models.report import Report
+from app.models.dashboard import Dashboard, DashboardWidget

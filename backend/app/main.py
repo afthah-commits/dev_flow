@@ -8,6 +8,7 @@ from app.api.v1.delivery import (
     delivery_metrics_router
 )
 from app.api.v1 import collaboration, search, ws
+from app.api.v1 import reports, dashboards
 from app.api.v1 import automations, integrations, webhooks, api_keys
 from app.api.public_v1 import public
 
@@ -62,6 +63,8 @@ app.include_router(collaboration.attachments_router, prefix=f"{settings.API_V1_S
 app.include_router(search.router, prefix=f"{settings.API_V1_STR}/search", tags=["search"])
 app.include_router(ws.router, prefix=f"{settings.API_V1_STR}/ws", tags=["websocket"])
 
+app.include_router(reports.router, prefix=f"{settings.API_V1_STR}/reports", tags=["reports"])
+app.include_router(dashboards.router, prefix=f"{settings.API_V1_STR}/dashboards", tags=["dashboards"])
 app.include_router(automations.router, prefix=f"{settings.API_V1_STR}/automations", tags=["automations"])
 app.include_router(integrations.router, prefix=f"{settings.API_V1_STR}/integrations", tags=["integrations"])
 app.include_router(webhooks.router, prefix=f"{settings.API_V1_STR}/webhooks", tags=["webhooks"])
