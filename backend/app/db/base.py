@@ -20,3 +20,4 @@ from app.models.security import Role, RolePermission, UserSession, LoginEvent
 from app.models.job import Job, JobExecution
 from app.models.report import Report
 from app.models.dashboard import Dashboard, DashboardWidget
+from app.models.governance import OrganizationSecurityPolicy, OrganizationDomain, OrganizationIdentityProvider, DataExportJob, SecurityApproval, OrganizationDeletionRequest, UserDeletionRequest

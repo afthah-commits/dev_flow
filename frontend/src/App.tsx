@@ -21,6 +21,7 @@ import AdminCompliance from './pages/AdminCompliance';
 import PrivacySettings from './pages/settings/PrivacySettings';
 import OrganizationSecurity from './pages/settings/OrganizationSecurity';
 import Sessions from './pages/settings/Sessions';
+import DeveloperSettings from './pages/settings/DeveloperSettings';
 import SecurityCenter from './pages/settings/SecurityCenter';
 import Dashboard from "./pages/Dashboard";
 import Profile from "./pages/Profile";
@@ -59,6 +60,7 @@ export default function App() {
               <Route path="/settings/privacy" element={<PrivacySettings />} />
               <Route path="/settings/organization/security" element={<OrganizationSecurity />} />
               <Route path="/settings/sessions" element={<Sessions />} />
+              <Route path="/settings/developer" element={<DeveloperSettings />} />
               <Route path="/settings/security-center" element={<SecurityCenter />} />
             <Route path="/projects/:projectId/edit" element={<ProjectForm />} />
             <Route path="/projects/:projectId/releases/:releaseId" element={<ReleaseDetails />} />
@@ -84,5 +86,6 @@ export default function App() {
     </BrowserRouter>
   );
 }
+
 
 

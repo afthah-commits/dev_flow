@@ -1,11 +1,11 @@
-import os
-
-file_path = "c:/personal_projects/devflow/backend/app/main.py"
-with open(file_path, "r", encoding="utf-8") as f:
+﻿import sys
+with open('app/main.py', 'r') as f:
     content = f.read()
 
-content = content.replace("import organizations, teams, invitations", "import organizations, teams\nfrom app.api.v1 import invitations")
+content = content.replace('from app.api.v1 import automations', 'from app.api.v1 import reports, dashboards\nfrom app.api.v1 import automations')
 
-with open(file_path, "w", encoding="utf-8") as f:
+if 'app.include_router(reports.router' not in content:
+    content = content.replace('app.include_router(automations.router', 'app.include_router(reports.router, prefix=f\"{settings.API_V1_STR}/reports\", tags=[\"reports\"])\napp.include_router(dashboards.router, prefix=f\"{settings.API_V1_STR}/dashboards\", tags=[\"dashboards\"])\napp.include_router(automations.router')
+
+with open('app/main.py', 'w') as f:
     f.write(content)
-print("Fixed main.py imports")

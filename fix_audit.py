@@ -1,14 +1,20 @@
-import glob
-files = glob.glob('backend/app/api/v1/*.py') + glob.glob('backend/app/services/*.py')
-for f in files:
-    with open(f, 'r') as file:
-        content = file.read()
-    
-    if 'AuditEvent(' in content and ('api_key' in f or 'integrations' in f or 'webhooks' in f or 'automation_engine' in f):
-        import re
-        content = re.sub(r'action="([^"]+)"', r'event_type="\1"', content)
-        content = re.sub(r'details=', r'metadata_=', content)
-        content = re.sub(r'entity_id="new"', r'entity_id=None', content) # or skip entity_id string conversion
-        
-        with open(f, 'w') as file:
-            file.write(content)
+with open('backend/app/api/v1/security.py', 'r') as f:
+    c = f.read()
+
+c = c.replace('from app.models.security import UserSession',
+              'from app.models.security import UserSession\nfrom app.models.audit import AuditEvent')
+
+c = c.replace('current_user.mfa_enabled = True',
+              '''current_user.mfa_enabled = True
+    db.add(AuditEvent(actor_user_id=current_user.id, event_type="mfa.enabled"))''')
+
+c = c.replace('current_user.mfa_enabled = False',
+              '''current_user.mfa_enabled = False
+    db.add(AuditEvent(actor_user_id=current_user.id, event_type="mfa.disabled"))''')
+
+c = c.replace('session.revoked_at = datetime.now()',
+              '''session.revoked_at = datetime.now()
+    db.add(AuditEvent(actor_user_id=current_user.id, event_type="session.revoked"))''')
+
+with open('backend/app/api/v1/security.py', 'w') as f:
+    f.write(c)
