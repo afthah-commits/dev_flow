@@ -1,4 +1,4 @@
-from fastapi import FastAPI
+﻿from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.core.config import settings
 from app.api.v1 import auth, projects, tasks, dashboard, github, ai, analytics, notifications, organizations, teams, invitations, labels, templates, sprints, milestones, backlog, roadmap, audit, time
@@ -8,7 +8,7 @@ from app.api.v1.delivery import (
     delivery_metrics_router
 )
 from app.api.v1 import collaboration, search, ws
-from app.api.v1 import reports, dashboards
+from app.api.v1 import reports, dashboards, governance, privacy
 from app.api.v1 import automations, integrations, webhooks, api_keys
 from app.api.public_v1 import public
 
@@ -63,6 +63,8 @@ app.include_router(collaboration.attachments_router, prefix=f"{settings.API_V1_S
 app.include_router(search.router, prefix=f"{settings.API_V1_STR}/search", tags=["search"])
 app.include_router(ws.router, prefix=f"{settings.API_V1_STR}/ws", tags=["websocket"])
 
+app.include_router(governance.router, prefix="/governance", tags=["governance"])
+app.include_router(privacy.router, prefix="/privacy", tags=["privacy"])
 app.include_router(reports.router, prefix=f"{settings.API_V1_STR}/reports", tags=["reports"])
 app.include_router(dashboards.router, prefix=f"{settings.API_V1_STR}/dashboards", tags=["dashboards"])
 app.include_router(automations.router, prefix=f"{settings.API_V1_STR}/automations", tags=["automations"])
@@ -75,4 +77,5 @@ app.include_router(public.router, prefix=f"/api/public/v1", tags=["public"])
 @app.get("/health")
 def health_check():
     return {"status": "ok"}
+
 

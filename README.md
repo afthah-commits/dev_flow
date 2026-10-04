@@ -73,3 +73,7 @@ Register a GitHub OAuth Application and configure the keys in the backend `.env`
 
 ## Phase 18: Advanced Reporting + Custom Dashboards
 Phase 18 adds advanced, fully-customizable dashboards, reporting engines, data exports, and metric aggregations, protected under DevFlow's organization-scoped tenant models and custom roles.
+
+
+## Phase 19: Enterprise Governance + Compliance
+Phase 19 introduces the foundational structures necessary for SOC2 readiness encompassing organizational data retention policies, explicit audit triggers, domain validation mocks, scoped security policies, and robust multi-tenant environment configurations.
