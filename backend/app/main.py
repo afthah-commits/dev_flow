@@ -8,6 +8,9 @@ from app.api.v1.delivery import (
     delivery_metrics_router
 )
 from app.api.v1 import collaboration, search, ws
+from app.api.v1 import automations, integrations, webhooks, api_keys
+from app.api.public_v1 import public
+
 
 app = FastAPI(
     title=settings.PROJECT_NAME,
@@ -58,6 +61,13 @@ app.include_router(collaboration.discussions_router, prefix=f"{settings.API_V1_S
 app.include_router(collaboration.attachments_router, prefix=f"{settings.API_V1_STR}/attachments", tags=["attachments"])
 app.include_router(search.router, prefix=f"{settings.API_V1_STR}/search", tags=["search"])
 app.include_router(ws.router, prefix=f"{settings.API_V1_STR}/ws", tags=["websocket"])
+
+app.include_router(automations.router, prefix=f"{settings.API_V1_STR}/automations", tags=["automations"])
+app.include_router(integrations.router, prefix=f"{settings.API_V1_STR}/integrations", tags=["integrations"])
+app.include_router(webhooks.router, prefix=f"{settings.API_V1_STR}/webhooks", tags=["webhooks"])
+app.include_router(api_keys.router, prefix=f"{settings.API_V1_STR}/api_keys", tags=["api_keys"])
+app.include_router(public.router, prefix=f"/api/public/v1", tags=["public"])
+
 
 @app.get("/health")
 def health_check():

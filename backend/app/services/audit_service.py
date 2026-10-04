@@ -1,3 +1,4 @@
+import uuid
 import json
 from uuid import UUID
 from typing import Optional, Any, Dict
@@ -42,8 +43,7 @@ def record_event(
 ):
     sanitized_metadata = sanitize_metadata(metadata) if metadata else None
     
-    event = AuditEvent(
-        organization_id=organization_id,
+    event = AuditEvent(organization_id=organization_id,
         actor_user_id=actor_user_id,
         event_type=event_type,
         entity_type=entity_type,

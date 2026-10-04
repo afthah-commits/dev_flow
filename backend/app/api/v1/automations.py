@@ -33,7 +33,7 @@ def create_automation(
 ) -> Any:
     automation = Automation(
         organization_id=organization_id,
-        created_by=current_user.id,
+        created_by=str(current_user.id),
         name=automation_in.name,
         description=automation_in.description,
         enabled=automation_in.enabled,

@@ -1,3 +1,4 @@
+import uuid
 import asyncio
 from typing import Dict, Any, List, Optional
 from datetime import datetime, timezone
@@ -135,17 +136,39 @@ async def execute_action(db: Session, action: Dict[str, Any], execution: Automat
         
         elif action_type == "CREATE_AUDIT_EVENT":
             audit = AuditEvent(
-                organization_id=org_id,
-                action=action.get("audit_action", "AUTOMATION_CUSTOM_EVENT"),
+                organization_id=uuid.UUID(str(org_id)),
+                event_type=action.get("audit_action", "AUTOMATION_CUSTOM_EVENT"),
                 entity_type=action.get("entity_type", "AUTOMATION"),
-                entity_id=execution.automation_id,
-                details=action.get("details", {})
+                entity_id=uuid.UUID(str(execution.automation_id)),
+                metadata_=action.get("details", {})
             )
             db.add(audit)
             db.flush()
             action_exec.output_data = {"audit_id": audit.id}
 
         # More actions here...
+
+        elif action_type == "SEND_WEBHOOK":
+            from app.models.webhook import WebhookEndpoint
+            from app.services.webhook_dispatcher import WebhookDispatcher
+            webhook_id = action.get("webhook_id")
+            if webhook_id:
+                webhook = db.query(WebhookEndpoint).filter(WebhookEndpoint.id == webhook_id, WebhookEndpoint.organization_id == org_id).first()
+                if webhook:
+                    dispatcher = WebhookDispatcher(db)
+                    await dispatcher.dispatch(webhook, event_payload.get("event_type", "custom"), event_payload, execution.idempotency_key)
+                    action_exec.output_data = {"webhook_id": webhook.id, "dispatched": True}
+        elif action_type == "SEND_SLACK_MESSAGE":
+            from app.services.providers.slack import SlackProvider
+            provider = SlackProvider("mock")
+            await provider.send_message(action.get("channel", "general"), action.get("message", "Auto Msg"))
+            action_exec.output_data = {"slack": "sent"}
+        elif action_type == "SEND_EMAIL":
+            from app.services.providers.email import EmailProvider
+            provider = EmailProvider({})
+            await provider.send_email(action.get("to", ""), action.get("subject", ""), action.get("body", ""))
+            action_exec.output_data = {"email": "sent"}
+
 
         action_exec.status = "SUCCESS"
         

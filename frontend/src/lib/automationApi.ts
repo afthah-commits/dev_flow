@@ -7,7 +7,7 @@ export const automationApi = {
     return res.data as Automation[];
   },
   get: async (id: string) => {
-    const res = await api.get(/automations/\);
+    const res = await api.get(`/automations/${id}`);
     return res.data as Automation;
   },
   create: async (organizationId: string, data: any) => {
@@ -15,18 +15,18 @@ export const automationApi = {
     return res.data as Automation;
   },
   update: async (id: string, data: any) => {
-    const res = await api.patch(/automations/\, data);
+    const res = await api.patch(`/automations/${id}`, data);
     return res.data as Automation;
   },
   remove: async (id: string) => {
-    await api.delete(/automations/\);
+    await api.delete(`/automations/${id}`);
   },
   getExecutions: async (id: string) => {
-    const res = await api.get(/automations/\/executions);
+    const res = await api.get(`/automations/${id}/executions`);
     return res.data as AutomationExecution[];
   },
   test: async (id: string, payload: any) => {
-    const res = await api.post(/automations/\/test, payload);
+    const res = await api.post(`/automations/${id}/test`, payload);
     return res.data;
   },
   generateAI: async (prompt: string) => {

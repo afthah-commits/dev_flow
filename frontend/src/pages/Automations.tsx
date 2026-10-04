@@ -1,12 +1,12 @@
 import React, { useEffect, useState } from 'react';
 import { automationApi } from '../lib/automationApi';
 import { Automation } from '../types/automation';
-import { useAuth } from '../hooks/useAuth';
+import { useOrganization } from '../contexts/OrganizationContext';
 import { Play, Plus, Settings, AlertCircle, Edit2, Trash2 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
 export default function Automations() {
-  const { currentOrganization } = useAuth();
+  const { currentOrganization } = useOrganization();
   const [automations, setAutomations] = useState<Automation[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -62,9 +62,9 @@ export default function Automations() {
               <h3 className="text-lg font-medium text-white">{a.name}</h3>
               <button 
                 onClick={() => handleToggle(a.id, a.enabled)}
-                className={\w-10 h-5 rounded-full transition-colors relative \\}
+                className={`w-10 h-5 rounded-full transition-colors relative ${a.enabled ? 'bg-purple-600' : 'bg-gray-700'}`}
               >
-                <div className={\w-3 h-3 bg-white rounded-full absolute top-1 transition-all \\} />
+                <div className={`w-3 h-3 bg-white rounded-full absolute top-1 transition-all ${a.enabled ? 'left-6' : 'left-1'}`} />
               </button>
             </div>
             <p className="text-sm text-gray-400 flex-1">{a.description || 'No description'}</p>
@@ -73,7 +73,7 @@ export default function Automations() {
                 {a.trigger_type}
               </span>
               <div className="flex items-center gap-2">
-                <Link to={\/automations/\\} className="p-1 text-gray-400 hover:text-white">
+                <Link to={`/automations/${a.id}`} className="p-1 text-gray-400 hover:text-white">
                   <Edit2 className="w-4 h-4" />
                 </Link>
                 <button onClick={() => handleDelete(a.id)} className="p-1 text-gray-400 hover:text-red-400">

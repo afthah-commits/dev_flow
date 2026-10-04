@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { automationApi } from '../lib/automationApi';
-import { useAuth } from '../hooks/useAuth';
+import { useOrganization } from '../contexts/OrganizationContext';
 import { Automation } from '../types/automation';
 import { Save, ArrowLeft, Wand2 } from 'lucide-react';
 import { Link } from 'react-router-dom';
@@ -9,7 +9,7 @@ import { Link } from 'react-router-dom';
 export default function AutomationDetails() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { currentOrganization } = useAuth();
+  const { currentOrganization } = useOrganization();
   
   const [automation, setAutomation] = useState<Partial<Automation>>({
     name: 'New Automation',
@@ -32,7 +32,7 @@ export default function AutomationDetails() {
     try {
       if (id === 'new') {
         const res = await automationApi.create(currentOrganization.id, automation);
-        navigate(\/automations/\\);
+        navigate(`/automations/${res.id}`);
       } else {
         await automationApi.update(id as string, automation);
         alert('Saved!');

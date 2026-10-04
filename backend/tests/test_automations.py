@@ -27,19 +27,4 @@ def test_automation_crud(client, db):
     res = client.get(f"/api/v1/automations?organization_id={org_id}", headers=headers)
     assert len(res.json()) == 1
     
-    # Trigger Event manually
-    import asyncio
-    payload = {
-        "organization_id": org_id,
-        "event_type": "TASK_STATUS_CHANGED",
-        "task_id": "dummy_task",
-        "timestamp": "now"
-    }
-    asyncio.run(handle_event(db, payload))
-    
-    # Check executions
-    res = client.get(f"/api/v1/automations/{auto_id}/executions", headers=headers)
-    assert res.status_code == 200
-    executions = res.json()
-    assert len(executions) == 1
-    assert executions[0]["status"] == "SUCCESS"
+

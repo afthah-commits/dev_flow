@@ -1,3 +1,4 @@
+import uuid
 from sqlalchemy import event
 from sqlalchemy.orm import Session
 from sqlalchemy.orm.attributes import get_history
@@ -55,6 +56,7 @@ def setup_audit_listeners(engine):
             
             info = get_entity_info(obj)
             e_org_id = getattr(obj, "organization_id", org_id)
+            if isinstance(e_org_id, str): e_org_id = uuid.UUID(e_org_id)
             if not e_org_id: continue
             
             metadata = {}
@@ -66,7 +68,7 @@ def setup_audit_listeners(engine):
                 actor_user_id=user_id,
                 event_type=f"{name.upper()}_CREATED",
                 entity_type=info["entity_type"],
-                entity_id=info["entity_id"],
+                entity_id=uuid.UUID(str(info["entity_id"])) if isinstance(info["entity_id"], str) else info["entity_id"],
                 project_id=info["project_id"],
                 team_id=info["team_id"],
                 metadata_=sanitize_metadata(metadata)
@@ -93,6 +95,7 @@ def setup_audit_listeners(engine):
                 
             info = get_entity_info(obj)
             e_org_id = getattr(obj, "organization_id", org_id)
+            if isinstance(e_org_id, str): e_org_id = uuid.UUID(e_org_id)
             if not e_org_id: continue
             
             changes = []
@@ -138,7 +141,7 @@ def setup_audit_listeners(engine):
                     actor_user_id=user_id,
                     event_type=f"{name.upper()}_UPDATED",
                     entity_type=info["entity_type"],
-                    entity_id=info["entity_id"],
+                    entity_id=uuid.UUID(str(info["entity_id"])) if isinstance(info["entity_id"], str) else info["entity_id"],
                     project_id=info["project_id"],
                     team_id=info["team_id"],
                     metadata_=sanitize_metadata({"changes": changes})
@@ -152,6 +155,7 @@ def setup_audit_listeners(engine):
                 
             info = get_entity_info(obj)
             e_org_id = getattr(obj, "organization_id", org_id)
+            if isinstance(e_org_id, str): e_org_id = uuid.UUID(e_org_id)
             if not e_org_id: continue
             
             events_to_add.append(AuditEvent(
@@ -159,7 +163,7 @@ def setup_audit_listeners(engine):
                 actor_user_id=user_id,
                 event_type=f"{name.upper()}_DELETED",
                 entity_type=info["entity_type"],
-                entity_id=info["entity_id"],
+                entity_id=uuid.UUID(str(info["entity_id"])) if isinstance(info["entity_id"], str) else info["entity_id"],
                 project_id=info["project_id"],
                 team_id=info["team_id"],
                 metadata_=sanitize_metadata({"id": str(info["entity_id"])})

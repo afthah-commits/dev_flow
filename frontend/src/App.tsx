@@ -7,6 +7,11 @@ import DashboardLayout from "./layouts/DashboardLayout";
 import Login from "./pages/Login";
 import Register from "./pages/Register";
 import ForgotPassword from "./pages/ForgotPassword";
+import Automations from './pages/Automations';
+import AutomationDetails from './pages/AutomationDetails';
+import Integrations from './pages/settings/Integrations';
+import Webhooks from './pages/settings/Webhooks';
+import ApiKeys from './pages/settings/ApiKeys';
 import Dashboard from "./pages/Dashboard";
 import Profile from "./pages/Profile";
 import Projects from "./pages/Projects";
@@ -49,6 +54,10 @@ export default function App() {
             <Route path="/analytics/collaboration" element={<CollaborationAnalytics />} />
               <Route path="/automations" element={<Automations />} />
               <Route path="/automations/:id" element={<AutomationDetails />} />
+              <Route path="/settings/integrations" element={<Integrations />} />
+              <Route path="/settings/webhooks" element={<Webhooks />} />
+              <Route path="/settings/api-keys" element={<ApiKeys />} />
+
           </Route>
         </Routes>
       </AuthProvider>

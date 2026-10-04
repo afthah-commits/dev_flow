@@ -123,9 +123,7 @@ export function GlobalSearch() {
               <button onClick={() => { navigate('/settings/notifications'); setIsOpen(false); }} className="w-full text-left px-3 py-2 hover:bg-gray-800 rounded text-gray-300">Open Notifications</button>
             </div>
           )}
-            </div>
-          )}
-                  </div>
+        </div>
       </div>
     </div>
   );
