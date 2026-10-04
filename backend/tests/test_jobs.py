@@ -9,10 +9,12 @@ from app.core.security import create_access_token
 
 @pytest.fixture
 def auth_setup(db: Session):
-    org = Organization(id=uuid4(), name="Test Org", slug="test-org")
-    user = User(id=uuid4(), email="test@test.com", password_hash="pwd")
-    db.add(org)
+    user = User(id=uuid4(), email='test@test.com', password_hash='pwd')
+    org = Organization(id=uuid4(), name='Test Org', slug='test-org', created_by=user.id)
     db.add(user)
+    db.commit()
+    db.add(org)
+    db.commit()
     db.commit()
     
     member = OrganizationMember(organization_id=org.id, user_id=user.id, role="admin")

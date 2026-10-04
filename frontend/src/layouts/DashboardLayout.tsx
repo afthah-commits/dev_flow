@@ -41,6 +41,7 @@ export default function DashboardLayout() {
         </div>
         <div className="flex items-center space-x-6">
           <Link to="/" className="hover:text-white transition-colors">Dashboard</Link>
+          <Link to="/ai" className="hover:text-white transition-colors">AI Intelligence</Link>
           <Link to="/projects" className="hover:text-white transition-colors">Projects</Link>
           <div className="relative group">
             <span className="hover:text-white transition-colors cursor-pointer">Infrastructure</span>

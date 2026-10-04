@@ -22,3 +22,5 @@ from app.models.report import Report
 from app.models.dashboard import Dashboard, DashboardWidget
 from app.models.governance import OrganizationSecurityPolicy, OrganizationDomain, OrganizationIdentityProvider, DataExportJob, SecurityApproval, OrganizationDeletionRequest, UserDeletionRequest
 from app.models.infrastructure import DeploymentApproval, EnvironmentVariable, ServiceHealth, DeploymentIncident
+from app.models.ai_project_memory import AIProjectMemory
+from app.models.ai_usage import AIUsage

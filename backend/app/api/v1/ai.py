@@ -275,3 +275,252 @@ async def generate_automation(
             }
         ]
     }
+
+from pydantic import BaseModel
+from app.services.audit_service import record_event
+from app.schemas.ai import (
+    ProjectSummary, ProjectRisk, TaskPrioritySuggestion, SprintPlan, 
+    GitHubSummary, ChangeIntelligence, ReleaseAnalysis, DeploymentAnalysis, 
+    DailyEngineeringBrief, AIProjectMemoryCreate, AIProjectMemoryResponse, AIUsageResponse
+)
+from app.models.ai_project_memory import AIProjectMemory
+from app.models.ai_usage import AIUsage
+from app.services.ai_context import get_comprehensive_project_context
+from app.services.ai.service import get_ai_provider
+
+@router.post("/projects/{project_id}/summary", response_model=ProjectSummary)
+async def generate_project_summary(
+    project_id: UUID,
+    db: Session = Depends(deps.get_db),
+    current_user: User = Depends(deps.get_current_user),
+    org_id: UUID = Depends(deps.get_current_organization_id)
+):
+    context_data = await get_comprehensive_project_context(db, project_id, current_user.id, org_id)
+    provider = get_ai_provider()
+    
+    prompt = f"Analyze this project context and provide a structured summary:\n{json.dumps(context_data, default=str)}"
+    result_str = await provider.chat(
+        messages=[{"role": "user", "content": prompt}],
+        system_prompt="You are an AI Engineering Intelligence Platform. Provide an objective summary of the project.",
+        json_schema=ProjectSummary.model_json_schema()
+    )
+    
+    # Audit log
+    record_event(
+        db=db,
+        organization_id=org_id,
+        actor_user_id=current_user.id,
+        event_type="ai.project_summary_generated",
+        entity_type="project",
+        entity_id=project_id,
+        metadata={"provider": type(provider).__name__}
+    )
+    
+    return ProjectSummary.model_validate_json(result_str)
+
+@router.post("/projects/{project_id}/risks", response_model=List[ProjectRisk])
+async def generate_project_risks(
+    project_id: UUID,
+    db: Session = Depends(deps.get_db),
+    current_user: User = Depends(deps.get_current_user),
+    org_id: UUID = Depends(deps.get_current_organization_id)
+):
+    context_data = await get_comprehensive_project_context(db, project_id, current_user.id, org_id)
+    provider = get_ai_provider()
+    
+    prompt = f"Analyze this project and identify key risks:\n{json.dumps(context_data, default=str)}"
+    
+    class RiskList(BaseModel):
+        risks: List[ProjectRisk]
+        
+    result_str = await provider.chat(
+        messages=[{"role": "user", "content": prompt}],
+        system_prompt="You are an AI Risk Analyzer.",
+        json_schema=RiskList.model_json_schema()
+    )
+    
+    record_event(
+        db=db,
+        organization_id=org_id,
+        actor_user_id=current_user.id,
+        event_type="ai.risk_analysis_generated",
+        entity_type="project",
+        entity_id=project_id,
+        metadata={}
+    )
+    
+    try:
+        data = RiskList.model_validate_json(result_str)
+        return data.risks
+    except Exception:
+        # fallback for mock
+        return [ProjectRisk.model_validate_json(result_str)] if "severity" in result_str else []
+
+@router.post("/projects/{project_id}/prioritize", response_model=List[TaskPrioritySuggestion])
+async def generate_task_prioritization(
+    project_id: UUID,
+    db: Session = Depends(deps.get_db),
+    current_user: User = Depends(deps.get_current_user),
+    org_id: UUID = Depends(deps.get_current_organization_id)
+):
+    context_data = await get_comprehensive_project_context(db, project_id, current_user.id, org_id)
+    provider = get_ai_provider()
+    
+    class PriorityList(BaseModel):
+        priorities: List[TaskPrioritySuggestion]
+        
+    prompt = f"Analyze uncompleted tasks and prioritize them:\n{json.dumps(context_data.get('tasks', {}), default=str)}"
+    result_str = await provider.chat(
+        messages=[{"role": "user", "content": prompt}],
+        system_prompt="You are an AI Task Prioritizer.",
+        json_schema=PriorityList.model_json_schema()
+    )
+    
+    record_event(
+        db=db,
+        organization_id=org_id,
+        actor_user_id=current_user.id,
+        event_type="ai.task_priority_suggested",
+        entity_type="project",
+        entity_id=project_id,
+        metadata={}
+    )
+    
+    try:
+        data = PriorityList.model_validate_json(result_str)
+        return data.priorities
+    except Exception:
+        return [TaskPrioritySuggestion.model_validate_json(result_str)] if "score" in result_str else []
+
+@router.post("/projects/{project_id}/sprint-plan", response_model=SprintPlan)
+async def generate_sprint_plan(
+    project_id: UUID,
+    db: Session = Depends(deps.get_db),
+    current_user: User = Depends(deps.get_current_user),
+    org_id: UUID = Depends(deps.get_current_organization_id)
+):
+    context_data = await get_comprehensive_project_context(db, project_id, current_user.id, org_id)
+    provider = get_ai_provider()
+    
+    prompt = f"Plan the next sprint:\n{json.dumps(context_data, default=str)}"
+    result_str = await provider.chat(
+        messages=[{"role": "user", "content": prompt}],
+        system_prompt="You are an AI Sprint Planner.",
+        json_schema=SprintPlan.model_json_schema()
+    )
+    
+    record_event(
+        db=db,
+        organization_id=org_id,
+        actor_user_id=current_user.id,
+        event_type="ai.sprint_plan_generated",
+        entity_type="project",
+        entity_id=project_id,
+        metadata={}
+    )
+    
+    return SprintPlan.model_validate_json(result_str)
+
+@router.post("/projects/{project_id}/github/summary", response_model=GitHubSummary)
+async def generate_github_summary(
+    project_id: UUID,
+    db: Session = Depends(deps.get_db),
+    current_user: User = Depends(deps.get_current_user),
+    org_id: UUID = Depends(deps.get_current_organization_id)
+):
+    context_data = await get_comprehensive_project_context(db, project_id, current_user.id, org_id)
+    provider = get_ai_provider()
+    
+    prompt = f"Summarize GitHub activity:\n{json.dumps(context_data.get('github', {}), default=str)}"
+    result_str = await provider.chat(
+        messages=[{"role": "user", "content": prompt}],
+        system_prompt="You are an AI GitHub Analyzer.",
+        json_schema=GitHubSummary.model_json_schema()
+    )
+    
+    return GitHubSummary.model_validate_json(result_str)
+
+@router.post("/releases/{release_id}/analysis", response_model=ReleaseAnalysis)
+async def generate_release_analysis(
+    release_id: UUID,
+    db: Session = Depends(deps.get_db),
+    current_user: User = Depends(deps.get_current_user),
+    org_id: UUID = Depends(deps.get_current_organization_id)
+):
+    provider = get_ai_provider()
+    prompt = f"Analyze release readiness for release {release_id}."
+    result_str = await provider.chat(
+        messages=[{"role": "user", "content": prompt}],
+        system_prompt="You are an AI Release Analyzer.",
+        json_schema=ReleaseAnalysis.model_json_schema()
+    )
+    
+    record_event(
+        db=db,
+        organization_id=org_id,
+        actor_user_id=current_user.id,
+        event_type="ai.release_analysis_generated",
+        entity_type="release",
+        entity_id=release_id,
+        metadata={}
+    )
+    
+    return ReleaseAnalysis.model_validate_json(result_str)
+
+@router.post("/projects/{project_id}/deployment-analysis", response_model=DeploymentAnalysis)
+async def generate_deployment_analysis(
+    project_id: UUID,
+    db: Session = Depends(deps.get_db),
+    current_user: User = Depends(deps.get_current_user),
+    org_id: UUID = Depends(deps.get_current_organization_id)
+):
+    context_data = await get_comprehensive_project_context(db, project_id, current_user.id, org_id)
+    provider = get_ai_provider()
+    
+    prompt = f"Analyze deployments:\n{json.dumps(context_data.get('deployments', []), default=str)}"
+    result_str = await provider.chat(
+        messages=[{"role": "user", "content": prompt}],
+        system_prompt="You are an AI Deployment Analyzer.",
+        json_schema=DeploymentAnalysis.model_json_schema()
+    )
+    
+    record_event(
+        db=db,
+        organization_id=org_id,
+        actor_user_id=current_user.id,
+        event_type="ai.deployment_analysis_generated",
+        entity_type="project",
+        entity_id=project_id,
+        metadata={}
+    )
+    
+    return DeploymentAnalysis.model_validate_json(result_str)
+
+@router.get("/projects/{project_id}/daily-brief", response_model=DailyEngineeringBrief)
+async def generate_daily_brief(
+    project_id: UUID,
+    db: Session = Depends(deps.get_db),
+    current_user: User = Depends(deps.get_current_user),
+    org_id: UUID = Depends(deps.get_current_organization_id)
+):
+    context_data = await get_comprehensive_project_context(db, project_id, current_user.id, org_id)
+    provider = get_ai_provider()
+    
+    prompt = f"Generate daily engineering brief:\n{json.dumps(context_data, default=str)}"
+    result_str = await provider.chat(
+        messages=[{"role": "user", "content": prompt}],
+        system_prompt="You are an AI Engineering Assistant.",
+        json_schema=DailyEngineeringBrief.model_json_schema()
+    )
+    
+    return DailyEngineeringBrief.model_validate_json(result_str)
+
+@router.get("/usage", response_model=List[AIUsageResponse])
+def get_ai_usage(
+    db: Session = Depends(deps.get_db),
+    current_user: User = Depends(deps.get_current_user),
+    org_id: UUID = Depends(deps.get_current_organization_id)
+):
+    usages = db.query(AIUsage).filter(AIUsage.organization_id == org_id).all()
+    return usages
+

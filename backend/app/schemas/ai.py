@@ -63,3 +63,107 @@ class TaskBreakdown(BaseModel):
 class AIActionResponse(BaseModel):
     result: str
     structured_data: Optional[dict] = None
+
+
+class ProjectSummary(BaseModel):
+    current_status: str
+    progress: str
+    health: str
+    major_completed_work: List[str]
+    overdue_work: List[str]
+    blockers: List[str]
+    sprint_status: str
+    github_activity: str
+    deployment_status: str
+    risks: List[str]
+    recommended_next_actions: List[str]
+
+class ProjectRisk(BaseModel):
+    title: str
+    severity: str
+    category: str
+    explanation: str
+    evidence: List[str]
+    recommendation: str
+
+class TaskPrioritySuggestion(BaseModel):
+    task_id: UUID
+    task_key: str
+    priority: str
+    score: float
+    reason: str
+    blockers: List[str]
+    recommendation: str
+
+class SprintPlan(BaseModel):
+    recommended_tasks: List[UUID]
+    estimated_workload: str
+    risks: List[str]
+    expected_sprint_outcome: str
+    excluded_tasks_with_reasons: dict
+
+class GitHubSummary(BaseModel):
+    recent_development_summary: str
+    pr_activity: str
+    issue_trends: str
+    potential_risks: List[str]
+    stale_prs: List[str]
+    unresolved_issues: List[str]
+    engineering_activity: str
+
+class ChangeIntelligence(BaseModel):
+    change_summary: str
+    affected_areas: List[str]
+    possible_risks: List[str]
+    testing_recommendations: List[str]
+
+class ReleaseAnalysis(BaseModel):
+    release_summary: str
+    completed_work: List[str]
+    incomplete_tasks: List[str]
+    pr_summary: str
+    deployment_readiness: str
+    blockers: List[str]
+    risks: List[str]
+    recommended_checks: List[str]
+
+class DeploymentAnalysis(BaseModel):
+    deployment_health: str
+    recurring_failures: List[str]
+    likely_risk_areas: List[str]
+    recommended_checks: List[str]
+
+class DailyEngineeringBrief(BaseModel):
+    completed_yesterday: List[str]
+    active_today: List[str]
+    overdue: List[str]
+    blocked: List[str]
+    github_changes: str
+    pr_activity: str
+    deployment_changes: str
+    important_risks: List[str]
+    recommended_focus: str
+
+class AIProjectMemoryCreate(BaseModel):
+    category: str
+    key: str
+    value: str
+
+class AIProjectMemoryResponse(AIProjectMemoryCreate):
+    id: UUID
+    created_at: datetime
+    updated_at: Optional[datetime] = None
+    class Config:
+        from_attributes = True
+
+class AIUsageResponse(BaseModel):
+    id: UUID
+    provider: str
+    model: str
+    request_type: str
+    input_tokens: Optional[int] = None
+    output_tokens: Optional[int] = None
+    estimated_cost: Optional[float] = None
+    created_at: datetime
+    class Config:
+        from_attributes = True

@@ -46,6 +46,7 @@ import OrganizationLayout from "./pages/OrganizationLayout";
 import ReleaseDetails from "./pages/ReleaseDetails";
 import DeliveryAnalytics from "./pages/DeliveryAnalytics";
 import { JobCenter } from "./pages/jobs/JobCenter";
+import AICommandCenter from "./pages/AICommandCenter";
 
 export default function App() {
   return (
@@ -68,6 +69,7 @@ export default function App() {
             <Route path="/projects/new" element={<ProjectForm />} />
             <Route path="/projects/:projectId" element={<ProjectDetails />} />
               <Route path="/dashboards" element={<Dashboards />} />
+              <Route path="/ai" element={<AICommandCenter />} />
               <Route path="/reports" element={<Reports />} />
               <Route path="/admin/compliance" element={<AdminCompliance />} />
               <Route path="/settings/privacy" element={<PrivacySettings />} />

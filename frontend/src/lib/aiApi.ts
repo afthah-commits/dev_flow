@@ -30,5 +30,42 @@ export const aiApi = {
   breakdownTask: async (projectId: string, taskId: string): Promise<AIActionResponse> => {
     const res = await api.post(`/ai/projects/${projectId}/actions/task-breakdown`, { task_id: taskId });
     return res.data;
+  },
+  getProjectSummary: async (projectId: string) => {
+    const res = await api.post(`/ai/projects/${projectId}/summary`);
+    return res.data;
+  },
+  getProjectRisks: async (projectId: string) => {
+    const res = await api.post(`/ai/projects/${projectId}/risks`);
+    return res.data;
+  },
+  getTaskPrioritization: async (projectId: string) => {
+    const res = await api.post(`/ai/projects/${projectId}/prioritize`);
+    return res.data;
+  },
+  getSprintPlan: async (projectId: string) => {
+    const res = await api.post(`/ai/projects/${projectId}/sprint-plan`);
+    return res.data;
+  },
+  getGitHubSummary: async (projectId: string) => {
+    const res = await api.post(`/ai/projects/${projectId}/github/summary`);
+    return res.data;
+  },
+  getReleaseAnalysis: async (releaseId: string) => {
+    const res = await api.post(`/ai/releases/${releaseId}/analysis`);
+    return res.data;
+  },
+  getDeploymentAnalysis: async (projectId: string) => {
+    const res = await api.post(`/ai/projects/${projectId}/deployment-analysis`);
+    return res.data;
+  },
+  getDailyBrief: async (projectId: string) => {
+    const res = await api.get(`/ai/projects/${projectId}/daily-brief`);
+    return res.data;
+  },
+  getUsage: async () => {
+    const res = await api.get('/ai/usage');
+    return res.data;
   }
 };
+
