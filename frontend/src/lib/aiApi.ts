@@ -66,6 +66,32 @@ export const aiApi = {
   getUsage: async () => {
     const res = await api.get('/ai/usage');
     return res.data;
+  },
+  // Phase 26
+  getForecast: async (projectId: string) => {
+    const res = await api.get(`/ai/projects/${projectId}/forecast`);
+    return res.data;
+  },
+  getRiskEngine: async (projectId: string) => {
+    const res = await api.get(`/ai/projects/${projectId}/risk-engine`);
+    return res.data;
+  },
+  getSmartSprintPlan: async (projectId: string) => {
+    const res = await api.get(`/ai/projects/${projectId}/sprint-planning`);
+    return res.data;
+  },
+  getHealthReport: async (projectId: string) => {
+    const res = await api.get(`/ai/projects/${projectId}/health-report`);
+    return res.data;
+  },
+  getOrgDailyBrief: async () => {
+    const res = await api.get(`/ai/daily-brief`);
+    return res.data;
+  },
+  getTaskPriorities: async (projectId: string) => {
+    const res = await api.get(`/ai/projects/${projectId}/task-priorities`);
+    return res.data;
   }
 };
+
 
