@@ -524,3 +524,137 @@ def get_ai_usage(
     usages = db.query(AIUsage).filter(AIUsage.organization_id == org_id).all()
     return usages
 
+
+from app.services.predictive_intelligence import (
+    calculate_project_forecast, calculate_project_risks, calculate_sprint_plan,
+    calculate_task_priorities, get_org_daily_brief
+)
+from app.schemas.ai import (
+    ProjectForecast, ProjectRiskEngineResult, SprintCapacityRecommendation,
+    ProjectHealthReport, OrgDailyBrief, TaskPriorityScore
+)
+
+@router.get("/projects/{project_id}/forecast", response_model=ProjectForecast)
+def get_project_forecast(
+    project_id: UUID,
+    db: Session = Depends(deps.get_db),
+    current_user: User = Depends(deps.get_current_user),
+    org_id: UUID = Depends(deps.get_current_organization_id)
+):
+    # Authorization checks are done implicitly via org_id filters in the service, but let's verify project exists for org
+    project = db.query(Project).filter(Project.id == project_id, Project.organization_id == org_id).first()
+    if not project:
+        raise HTTPException(status_code=404, detail="Project not found")
+        
+    forecast = calculate_project_forecast(db, project_id, org_id)
+    
+    record_event(
+        db=db,
+        organization_id=org_id,
+        actor_user_id=current_user.id,
+        event_type="ai.forecast_generated",
+        entity_type="project",
+        entity_id=project_id,
+        metadata={}
+    )
+    return forecast
+
+@router.get("/projects/{project_id}/sprint-planning", response_model=SprintCapacityRecommendation)
+def get_smart_sprint_plan(
+    project_id: UUID,
+    db: Session = Depends(deps.get_db),
+    current_user: User = Depends(deps.get_current_user),
+    org_id: UUID = Depends(deps.get_current_organization_id)
+):
+    project = db.query(Project).filter(Project.id == project_id, Project.organization_id == org_id).first()
+    if not project:
+        raise HTTPException(status_code=404, detail="Project not found")
+        
+    plan = calculate_sprint_plan(db, project_id, org_id)
+    
+    record_event(
+        db=db,
+        organization_id=org_id,
+        actor_user_id=current_user.id,
+        event_type="ai.sprint_recommendation_generated",
+        entity_type="project",
+        entity_id=project_id,
+        metadata={}
+    )
+    return plan
+
+@router.get("/projects/{project_id}/health-report", response_model=ProjectHealthReport)
+async def get_project_health_report(
+    project_id: UUID,
+    db: Session = Depends(deps.get_db),
+    current_user: User = Depends(deps.get_current_user),
+    org_id: UUID = Depends(deps.get_current_organization_id)
+):
+    context_data = await get_comprehensive_project_context(db, project_id, current_user.id, org_id)
+    provider = get_ai_provider()
+    
+    prompt = f"Generate a comprehensive AI Engineering Health Report based on this data:\n{json.dumps(context_data, default=str)}"
+    result_str = await provider.chat(
+        messages=[{"role": "user", "content": prompt}],
+        system_prompt="You are an AI Engineering Intelligence Platform. Provide a structured health report.",
+        json_schema=ProjectHealthReport.model_json_schema()
+    )
+    
+    record_event(
+        db=db,
+        organization_id=org_id,
+        actor_user_id=current_user.id,
+        event_type="ai.health_report_generated",
+        entity_type="project",
+        entity_id=project_id,
+        metadata={}
+    )
+    
+    return ProjectHealthReport.model_validate_json(result_str)
+
+@router.get("/daily-brief", response_model=OrgDailyBrief)
+def get_daily_brief(
+    db: Session = Depends(deps.get_db),
+    current_user: User = Depends(deps.get_current_user),
+    org_id: UUID = Depends(deps.get_current_organization_id)
+):
+    brief_data = get_org_daily_brief(db, org_id)
+    return OrgDailyBrief(**brief_data)
+
+@router.get("/projects/{project_id}/task-priorities", response_model=List[TaskPriorityScore])
+def get_task_priorities(
+    project_id: UUID,
+    db: Session = Depends(deps.get_db),
+    current_user: User = Depends(deps.get_current_user),
+    org_id: UUID = Depends(deps.get_current_organization_id)
+):
+    project = db.query(Project).filter(Project.id == project_id, Project.organization_id == org_id).first()
+    if not project:
+        raise HTTPException(status_code=404, detail="Project not found")
+        
+    priorities = calculate_task_priorities(db, project_id, org_id)
+    
+    record_event(
+        db=db,
+        organization_id=org_id,
+        actor_user_id=current_user.id,
+        event_type="ai.prioritization_generated",
+        entity_type="project",
+        entity_id=project_id,
+        metadata={}
+    )
+    return priorities
+
+@router.get("/projects/{project_id}/risk-engine", response_model=ProjectRiskEngineResult)
+def get_project_risk_engine(
+    project_id: UUID,
+    db: Session = Depends(deps.get_db),
+    current_user: User = Depends(deps.get_current_user),
+    org_id: UUID = Depends(deps.get_current_organization_id)
+):
+    project = db.query(Project).filter(Project.id == project_id, Project.organization_id == org_id).first()
+    if not project:
+        raise HTTPException(status_code=404, detail="Project not found")
+        
+    result = calculate_project_risks(db, project_id, org_id)
+    return result

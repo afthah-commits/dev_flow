@@ -167,3 +167,82 @@ class AIUsageResponse(BaseModel):
     created_at: datetime
     class Config:
         from_attributes = True
+
+class ForecastAssumptions(BaseModel):
+    velocity_tasks_per_week: float
+    velocity_story_points_per_week: float
+    historical_weeks_analyzed: int
+    unestimated_tasks: int
+
+class ProjectForecast(BaseModel):
+    project_id: UUID
+    estimated_completion_date: Optional[datetime] = None
+    remaining_tasks: int
+    completed_tasks: int
+    completion_rate: float
+    velocity: float # tasks per sprint/week
+    remaining_story_points: float
+    estimated_sprints_remaining: Optional[int] = None
+    confidence: str # HIGH, MEDIUM, LOW
+    risk_level: str # LOW, MEDIUM, HIGH, CRITICAL
+    assumptions: ForecastAssumptions
+
+class RiskItem(BaseModel):
+    category: str
+    severity: str
+    score: int
+    title: str
+    explanation: str
+    evidence: str
+    recommendation: str
+
+class ProjectRiskEngineResult(BaseModel):
+    overall_risk_score: int
+    risk_level: str
+    risks: List[RiskItem]
+
+class SprintCapacityRecommendation(BaseModel):
+    recommended_capacity_points: float
+    suggested_tasks: List[UUID]
+    excluded_tasks: List[UUID]
+    reasons_for_exclusions: dict # task_id string to reason
+    overloaded_members: List[UUID]
+    dependency_warnings: List[str]
+    confidence: str
+
+class ProjectHealthReport(BaseModel):
+    executive_summary: str
+    project_health: str
+    delivery_status: str
+    engineering_risks: str
+    team_workload: str
+    github_activity: str
+    deployment_health: str
+    productivity: str
+    recommendations: List[str]
+    next_actions: List[str]
+
+class OrgDailyBriefItem(BaseModel):
+    title: str
+    priority: str
+    reason: str
+    source: str
+
+class OrgDailyBrief(BaseModel):
+    projects_needing_attention: List[str]
+    overdue_tasks: List[OrgDailyBriefItem]
+    blocked_tasks: List[OrgDailyBriefItem]
+    sprint_deadlines: List[OrgDailyBriefItem]
+    deployment_failures: List[OrgDailyBriefItem]
+    important_github_activity: List[OrgDailyBriefItem]
+    security_events: List[OrgDailyBriefItem]
+    failed_background_jobs: List[OrgDailyBriefItem]
+    high_priority_notifications: List[OrgDailyBriefItem]
+    recommended_focus_for_today: List[OrgDailyBriefItem]
+
+class TaskPriorityScore(BaseModel):
+    task_id: UUID
+    task_key: str
+    score: float
+    priority_level: str
+    reasons: List[str]
