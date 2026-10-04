@@ -736,3 +736,27 @@ async def generate_client_summary(
     
     # We use MockAI Provider here.
     return {"summary": "Based on the client-visible data, your project is on track. 2 requests are OPEN, and 5 tasks were completed."}
+
+class AIWorkflowGenerateRequest(BaseModel):
+    prompt: str
+
+@router.post("/workflows/generate")
+async def generate_workflow(
+    req: AIWorkflowGenerateRequest,
+    db: Session = Depends(deps.get_db),
+    current_user: User = Depends(deps.get_current_user)
+):
+    # Mock AI response
+    return {
+        "name": "Generated Workflow",
+        "entity_type": "TASK",
+        "states": [
+            {"name": "To Do", "key": "TODO", "is_initial": True, "position": 0},
+            {"name": "In Progress", "key": "IN_PROGRESS", "position": 1},
+            {"name": "Done", "key": "DONE", "is_terminal": True, "position": 2}
+        ],
+        "transitions": [
+            {"name": "Start", "from_state_key": "TODO", "to_state_key": "IN_PROGRESS", "requires_approval": False},
+            {"name": "Finish", "from_state_key": "IN_PROGRESS", "to_state_key": "DONE", "requires_approval": True}
+        ]
+    }

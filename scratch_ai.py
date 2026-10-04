@@ -4,23 +4,33 @@ with open('backend/app/api/v1/ai.py', 'r') as f:
     content = f.read()
 
 ai_endpoint = """
-class ClientSummaryRequest(BaseModel):
-    client_id: str
+class AIWorkflowGenerateRequest(BaseModel):
+    prompt: str
 
-@router.post("/client/summary")
-async def generate_client_summary(
-    req: ClientSummaryRequest,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_active_user)
+@router.post("/workflows/generate")
+async def generate_workflow(
+    req: AIWorkflowGenerateRequest,
+    db: Session = Depends(deps.get_db),
+    current_user: User = Depends(deps.get_current_user)
 ):
-    from app.services import client_service
-    client = client_service.verify_client_access(db, UUID(req.client_id), current_user.id)
-    
-    # We use MockAI Provider here.
-    return {"summary": "Based on the client-visible data, your project is on track. 2 requests are OPEN, and 5 tasks were completed."}
+    # Mock AI response
+    return {
+        "name": "Generated Workflow",
+        "entity_type": "TASK",
+        "states": [
+            {"name": "To Do", "key": "TODO", "is_initial": True, "position": 0},
+            {"name": "In Progress", "key": "IN_PROGRESS", "position": 1},
+            {"name": "Done", "key": "DONE", "is_terminal": True, "position": 2}
+        ],
+        "transitions": [
+            {"name": "Start", "from_state_key": "TODO", "to_state_key": "IN_PROGRESS", "requires_approval": False},
+            {"name": "Finish", "from_state_key": "IN_PROGRESS", "to_state_key": "DONE", "requires_approval": True}
+        ]
+    }
 """
 
-content = content + ai_endpoint
+if "/workflows/generate" not in content:
+    content = content + ai_endpoint
 
 with open('backend/app/api/v1/ai.py', 'w') as f:
     f.write(content)

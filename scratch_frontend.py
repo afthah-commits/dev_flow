@@ -1,20 +1,25 @@
-with open('frontend/src/App.tsx', 'r') as f:
-    content = f.read()
+def patch_app_tsx():
+    with open('frontend/src/App.tsx', 'r') as f:
+        content = f.read()
 
-imports = '''import Clients from './pages/Clients';
-import ClientDashboard from './pages/ClientDashboard';
-'''
+    # Add imports if not present
+    imports = """import { Workflows } from './pages/Workflows';
+import { WorkflowBuilder } from './pages/WorkflowBuilder';
+import { WorkflowAnalytics } from './pages/WorkflowAnalytics';
+"""
+    if "import { Workflows }" not in content:
+        content = content.replace("import { Clients } from './pages/Clients';", "import { Clients } from './pages/Clients';\n" + imports)
 
-content = content.replace('import KnowledgeBase from', imports + 'import KnowledgeBase from')
+    # Add routes if not present
+    routes = """
+              <Route path="workflows" element={<Workflows />} />
+              <Route path="workflows/:id" element={<WorkflowBuilder />} />
+              <Route path="analytics/workflows" element={<WorkflowAnalytics />} />
+"""
+    if "path=\"workflows\"" not in content:
+        content = content.replace("<Route path=\"clients\" element={<Clients />} />", "<Route path=\"clients\" element={<Clients />} />\n" + routes)
 
-routes = '''
-            <Route path="/settings/clients" element={<Clients />} />
-            <Route path="/client" element={<ClientDashboard />} />
-            <Route path="/client/knowledge" element={<ClientDashboard />} />
-            <Route path="/analytics/clients" element={<Clients />} />
-'''
+    with open('frontend/src/App.tsx', 'w') as f:
+        f.write(content)
 
-content = content.replace('<Route path="/settings/integrations" element={<Integrations />} />', '<Route path="/settings/integrations" element={<Integrations />} />' + routes)
-
-with open('frontend/src/App.tsx', 'w') as f:
-    f.write(content)
+patch_app_tsx()

@@ -7,7 +7,7 @@ from app.api.v1.delivery import (
     project_deployments_router, deployments_router, pipelines_router,
     delivery_metrics_router
 )
-from app.api.v1 import collaboration, search, ws, knowledge, clients, client_portal
+from app.api.v1 import collaboration, search, ws, knowledge, clients, client_portal, workflows, custom_fields
 
 from app.api.v1 import environments, deployments, deployment_incidents, infrastructure
 
@@ -74,6 +74,8 @@ app.include_router(collaboration.attachments_router, prefix=f"{settings.API_V1_S
 app.include_router(knowledge.router, prefix=f"{settings.API_V1_STR}/knowledge", tags=["knowledge"])
 app.include_router(clients.router, prefix=f"{settings.API_V1_STR}/clients", tags=["clients"])
 app.include_router(client_portal.router, prefix=f"{settings.API_V1_STR}/client-portal", tags=["client-portal"])
+app.include_router(workflows.router, prefix=f"{settings.API_V1_STR}/workflows", tags=["workflows"])
+app.include_router(custom_fields.router, prefix=f"{settings.API_V1_STR}/custom-fields", tags=["custom-fields"])
 app.include_router(search.router, prefix=f"{settings.API_V1_STR}/search", tags=["search"])
 app.include_router(ws.router, prefix=f"{settings.API_V1_STR}/ws", tags=["websocket"])
 

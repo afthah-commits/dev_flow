@@ -28,3 +28,5 @@ from app.models.ai_usage import AIUsage
 from app.models.knowledge import KnowledgeSpace, KnowledgeDocument, KnowledgeDocumentVersion, KnowledgeTag, KnowledgeDocumentLink, KnowledgeDocumentWatcher
 
 from app.models.client import Client, ClientUser, ClientProjectAccess, ClientInvitation, ClientComment, ClientRequest, ClientActivity
+
+from app.models.workflow import Workflow, WorkflowState, WorkflowTransition, WorkflowCondition, WorkflowAction, WorkflowApproval, WorkflowExecution, WorkflowExecutionEvent, CustomField, CustomFieldValue, WorkflowForm, WorkflowFormField
