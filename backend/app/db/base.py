@@ -29,4 +29,4 @@ from app.models.knowledge import KnowledgeSpace, KnowledgeDocument, KnowledgeDoc
 
 from app.models.client import Client, ClientUser, ClientProjectAccess, ClientInvitation, ClientComment, ClientRequest, ClientActivity
 
-from app.models.workflow import Workflow, WorkflowState, WorkflowTransition, WorkflowCondition, WorkflowAction, WorkflowApproval, WorkflowExecution, WorkflowExecutionEvent, CustomField, CustomFieldValue, WorkflowForm, WorkflowFormField
+from app.models.workflow import Workflow, WorkflowState, WorkflowTransition, WorkflowCondition, WorkflowAction, WorkflowApproval, WorkflowExecution, WorkflowExecutionEvent, CustomField, CustomFieldValue, WorkflowForm, WorkflowFormField, WorkflowVersion, WorkflowStateLayout

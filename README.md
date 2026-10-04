@@ -84,3 +84,6 @@ Provides comprehensive external application boundaries securely integrating dete
 
 ## Phase 21: DevOps, Deployment & Infrastructure Intelligence
 Phase 21 transforms DevFlow into a production-oriented deployment workspace, tracking environments, deployment histories, mock health metrics, release rollbacks, and incident generation under the existing tenant boundaries.
+
+## Phase 30: Visual Workflow Studio & Advanced Form Builder
+Phase 30 upgrades the structured Workflow Builder into a professional visual Workflow Studio at `/workflows/:workflowId/studio`: an infinite canvas (pan/zoom/grid, drag-and-drop states, visual transition links, minimap), a right-side configuration panel for states, transitions, safe conditions, ordered actions, and approval rules, plus workflow validation (PASS/WARNING/ERROR publish gate), a dry-run simulator, immutable DRAFT/PUBLISHED/ARCHIVED versioning, execution history with step-through previews, an advanced drag-and-drop form builder with conditional fields, realtime workflow events, and an advisory AI design assistant that can only produce drafts for explicit human review. See [docs/visual-workflow-studio.md](docs/visual-workflow-studio.md).

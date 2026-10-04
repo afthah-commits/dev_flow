@@ -51,6 +51,10 @@ import ReleaseDetails from "./pages/ReleaseDetails";
 import DeliveryAnalytics from "./pages/DeliveryAnalytics";
 import { JobCenter } from "./pages/jobs/JobCenter";
 import AICommandCenter from "./pages/AICommandCenter";
+import WorkflowStudio from "./pages/WorkflowStudio";
+import WorkflowFormBuilder from "./pages/WorkflowFormBuilder";
+import WorkflowAnalytics from "./pages/WorkflowAnalytics";
+import Workflows from "./pages/Workflows";
 
 export default function App() {
   return (
@@ -115,6 +119,12 @@ export default function App() {
               <Route path="/infrastructure/services" element={<Services />} />
               <Route path="/infrastructure/incidents" element={<Incidents />} />
               <Route path="/infrastructure/analytics" element={<InfrastructureAnalytics />} />
+
+              {/* Phase 30: Visual Workflow Studio */}
+              <Route path="/workflows" element={<Workflows />} />
+              <Route path="/workflows/:workflowId/studio" element={<WorkflowStudio />} />
+              <Route path="/workflows/:workflowId/forms" element={<WorkflowFormBuilder />} />
+              <Route path="/analytics/workflows" element={<WorkflowAnalytics />} />
 
 
           </Route>

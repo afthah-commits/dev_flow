@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
-from typing import Any, List
+from typing import Any, Dict, List
 from uuid import UUID
 import json
 
@@ -14,6 +14,7 @@ from app.schemas.ai import (
     AIConversationCreate, AIConversationResponse, AIChatRequest, AIMessageResponse,
     AIActionResponse, TaskSuggestion, TaskBreakdown, AITaskDescriptionRequest, AITaskBreakdownRequest
 )
+from app.schemas.workflow import AIWorkflowSuggestion
 from app.services.ai.service import get_ai_provider, SYSTEM_PROMPT
 from app.services.ai.context import build_project_context
 
@@ -740,23 +741,104 @@ async def generate_client_summary(
 class AIWorkflowGenerateRequest(BaseModel):
     prompt: str
 
-@router.post("/workflows/generate")
+@router.post("/workflows/generate", response_model=AIWorkflowSuggestion)
 async def generate_workflow(
     req: AIWorkflowGenerateRequest,
     db: Session = Depends(deps.get_db),
-    current_user: User = Depends(deps.get_current_user)
+    current_user: User = Depends(deps.get_current_user),
+    org_id: UUID = Depends(deps.get_current_organization_id)
 ):
-    # Mock AI response
-    return {
-        "name": "Generated Workflow",
-        "entity_type": "TASK",
-        "states": [
-            {"name": "To Do", "key": "TODO", "is_initial": True, "position": 0},
-            {"name": "In Progress", "key": "IN_PROGRESS", "position": 1},
-            {"name": "Done", "key": "DONE", "is_terminal": True, "position": 2}
-        ],
-        "transitions": [
-            {"name": "Start", "from_state_key": "TODO", "to_state_key": "IN_PROGRESS", "requires_approval": False},
-            {"name": "Finish", "from_state_key": "IN_PROGRESS", "to_state_key": "DONE", "requires_approval": True}
+    """AI Workflow Design Assistant (Phase 30).
+
+    ADVISORY ONLY. Returns a suggestion preview that the user must review and
+    explicitly apply as a draft via POST /api/v1/workflows/ai/apply. The AI
+    never saves, publishes, or executes anything automatically.
+    """
+    deps.require_organization_member(db, current_user.id, org_id)
+
+    from app.schemas.workflow import AIWorkflowSuggestion
+
+    prompt_l = (req.prompt or "").lower()
+
+    # Deterministic, safe suggestion synthesis from keywords in the prompt.
+    states = [
+        {"name": "To Do", "key": "TODO", "state_type": "INITIAL", "is_initial": True, "position": 0, "color": "#6b7280"},
+        {"name": "In Progress", "key": "IN_PROGRESS", "state_type": "IN_PROGRESS", "position": 1, "color": "#3b82f6"},
+        {"name": "Done", "key": "DONE", "state_type": "COMPLETED", "is_terminal": True, "position": 2, "color": "#22c55e"},
+    ]
+    transitions = [
+        {"name": "Start", "from_key": "TODO", "to_key": "IN_PROGRESS", "requires_approval": False, "conditions": [], "actions": []},
+        {"name": "Finish", "from_key": "IN_PROGRESS", "to_key": "DONE", "requires_approval": False, "conditions": [], "actions": []},
+    ]
+    notes: List[str] = []
+    form_fields: List[Dict[str, Any]] = []
+
+    if any(w in prompt_l for w in ("overdue", "late", "blocked", "stuck")):
+        states.insert(2, {"name": "Blocked", "key": "BLOCKED", "state_type": "WAITING", "position": 2, "color": "#ef4444"})
+        states[3]["position"] = 3
+        transitions = [
+            {"name": "Start", "from_key": "TODO", "to_key": "IN_PROGRESS", "requires_approval": False, "conditions": [], "actions": []},
+            {"name": "Flag Overdue", "from_key": "IN_PROGRESS", "to_key": "BLOCKED",
+             "requires_approval": False,
+             "conditions": [{"field": "due_date", "operator": "IS_NOT_EMPTY", "value": None},
+                            {"field": "due_date", "operator": "LESS_THAN", "value": "now"}],
+             "actions": [{"action_type": "SEND_NOTIFICATION",
+                          "configuration": {"title": "Task overdue", "message": "A task became overdue and was moved to Blocked.", "notification_type": "SYSTEM"}}]},
+            {"name": "Reopen", "from_key": "BLOCKED", "to_key": "IN_PROGRESS",
+             "requires_approval": True,
+             "approval_config": {"required": True, "approver_type": "ROLE", "organization_role": "ADMIN", "minimum_approvals": 1, "on_reject": "BLOCK"},
+             "conditions": [], "actions": []},
+            {"name": "Finish", "from_key": "IN_PROGRESS", "to_key": "DONE", "requires_approval": False, "conditions": [], "actions": []},
         ]
-    }
+        notes.append("Tasks that become overdue are moved to Blocked and the project manager is notified.")
+        notes.append("Reopening a blocked task requires an approval before it can move back to In Progress.")
+
+    if any(w in prompt_l for w in ("approve", "approval", "review", "sign-off", "signoff")):
+        if not any(t.get("requires_approval") for t in transitions):
+            transitions.append({
+                "name": "Request Review", "from_key": "IN_PROGRESS", "to_key": states[-1]["key"],
+                "requires_approval": True,
+                "approval_config": {"required": True, "approver_type": "ROLE", "organization_role": "ADMIN", "minimum_approvals": 1, "on_reject": "BLOCK"},
+                "conditions": [], "actions": [{"action_type": "REQUEST_APPROVAL", "configuration": {}}],
+            })
+        notes.append("An approval gate was suggested before completion.")
+
+    if any(w in prompt_l for w in ("deploy", "deployment", "release", "production")):
+        form_fields = [
+            {"id": "deploy_required", "type": "CHECKBOX", "label": "Deployment required?", "position": 0},
+            {"id": "environment", "type": "SELECT", "label": "Environment", "options": ["staging", "production"], "position": 1,
+             "visibility": {"field": "deploy_required", "operator": "EQUALS", "value": True, "action": "SHOW"}},
+            {"id": "deploy_window", "type": "DATETIME", "label": "Deployment Window", "position": 2,
+             "visibility": {"field": "deploy_required", "operator": "EQUALS", "value": True, "action": "SHOW"}},
+            {"id": "deploy_approval", "type": "CHECKBOX", "label": "Approval Required", "position": 3,
+             "visibility": {"field": "deploy_required", "operator": "EQUALS", "value": True, "action": "SHOW"}},
+        ]
+        notes.append("A conditional deployment form section was suggested.")
+
+    if any(w in prompt_l for w in ("form", "intake", "request", "checklist")):
+        form_fields = form_fields or [
+            {"id": "summary", "type": "TEXT", "label": "Summary", "required": True, "position": 0},
+            {"id": "details", "type": "TEXTAREA", "label": "Details", "position": 1},
+        ]
+        notes.append("An intake form was suggested.")
+
+    suggestion = AIWorkflowSuggestion(
+        name="AI Suggested Workflow",
+        entity_type="TASK",
+        description=f"AI suggestion based on: {req.prompt[:180]}",
+        states=states,
+        transitions=transitions,
+        form_fields=form_fields,
+        notes=notes,
+        preview_only=True,
+    )
+
+    record_event(
+        db=db,
+        organization_id=org_id,
+        event_type="workflow.ai_suggestion_generated",
+        entity_type="WORKFLOW",
+        actor_user_id=current_user.id,
+        metadata={"prompt_length": len(req.prompt or ""), "preview_only": True},
+    )
+    return suggestion

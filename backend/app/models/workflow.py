@@ -36,6 +36,23 @@ class WorkflowApprovalStatus(str, enum.Enum):
     CHANGES_REQUESTED = "CHANGES_REQUESTED"
     CANCELLED = "CANCELLED"
 
+class WorkflowStateType(str, enum.Enum):
+    """Visual studio state types (Phase 30). Maps onto the existing
+    is_initial / is_terminal booleans which remain authoritative."""
+    INITIAL = "INITIAL"
+    NORMAL = "NORMAL"
+    IN_PROGRESS = "IN_PROGRESS"
+    WAITING = "WAITING"
+    APPROVAL = "APPROVAL"
+    COMPLETED = "COMPLETED"
+    FAILED = "FAILED"
+    CANCELLED = "CANCELLED"
+
+class WorkflowVersionStatus(str, enum.Enum):
+    DRAFT = "DRAFT"
+    PUBLISHED = "PUBLISHED"
+    ARCHIVED = "ARCHIVED"
+
 class Workflow(Base):
     __tablename__ = "workflows"
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4, index=True)
@@ -51,6 +68,8 @@ class Workflow(Base):
 
     states = relationship("WorkflowState", back_populates="workflow", cascade="all, delete-orphan")
     transitions = relationship("WorkflowTransition", back_populates="workflow", cascade="all, delete-orphan")
+    versions = relationship("WorkflowVersion", back_populates="workflow", cascade="all, delete-orphan")
+
 
 class WorkflowState(Base):
     __tablename__ = "workflow_states"
@@ -63,9 +82,13 @@ class WorkflowState(Base):
     color = Column(String, nullable=True)
     is_initial = Column(Boolean, default=False, nullable=False)
     is_terminal = Column(Boolean, default=False, nullable=False)
+    # Phase 30: visual studio extensions
+    state_type = Column(String, default=WorkflowStateType.NORMAL.value, nullable=False, server_default=WorkflowStateType.NORMAL.value)
+    approval_config = Column(JSON, nullable=True)
 
     workflow = relationship("Workflow", back_populates="states")
-    
+    layout = relationship("WorkflowStateLayout", back_populates="state", cascade="all, delete-orphan", uselist=False)
+
     __table_args__ = (UniqueConstraint('workflow_id', 'key', name='uq_workflow_state_key'),)
 
 class WorkflowTransition(Base):
@@ -77,6 +100,9 @@ class WorkflowTransition(Base):
     to_state_id = Column(UUID(as_uuid=True), ForeignKey("workflow_states.id", ondelete="CASCADE"), nullable=False)
     position = Column(Integer, default=0, nullable=False)
     requires_approval = Column(Boolean, default=False, nullable=False)
+    # Phase 30: visual studio extensions
+    description = Column(Text, nullable=True)
+    approval_config = Column(JSON, nullable=True)
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), nullable=False)
 
     workflow = relationship("Workflow", back_populates="transitions")
@@ -128,6 +154,55 @@ class WorkflowExecution(Base):
     status = Column(String, default="ACTIVE", nullable=False) # ACTIVE, COMPLETED, FAILED
     started_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), nullable=False)
     completed_at = Column(DateTime, nullable=True)
+    # Phase 30: executions retain the workflow version they were started against
+    workflow_version_id = Column(UUID(as_uuid=True), ForeignKey("workflow_versions.id", ondelete="SET NULL"), nullable=True)
+    trigger_source = Column(String, nullable=True)
+    error_message = Column(Text, nullable=True)
+
+    workflow = relationship("Workflow")
+    version = relationship("WorkflowVersion")
+    current_state = relationship("WorkflowState", foreign_keys=[current_state_id])
+    events = relationship("WorkflowExecutionEvent", back_populates="execution", cascade="all, delete-orphan", order_by="WorkflowExecutionEvent.created_at")
+
+
+class WorkflowVersion(Base):
+    """Immutable snapshots of a workflow (Phase 30 versioning).
+
+    Lifecycle: DRAFT -> PUBLISHED -> ARCHIVED. Published versions are
+    immutable; editing a published workflow always creates a new draft.
+    """
+    __tablename__ = "workflow_versions"
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4, index=True)
+    organization_id = Column(UUID(as_uuid=True), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False, index=True)
+    workflow_id = Column(UUID(as_uuid=True), ForeignKey("workflows.id", ondelete="CASCADE"), nullable=False, index=True)
+    version_number = Column(Integer, nullable=False, default=1)
+    status = Column(Enum(WorkflowVersionStatus, native_enum=False), default=WorkflowVersionStatus.DRAFT, nullable=False, index=True)
+    snapshot = Column(JSON, nullable=True)
+    change_note = Column(Text, nullable=True)
+    created_by = Column(UUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), nullable=False)
+    updated_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc), nullable=False)
+    published_at = Column(DateTime, nullable=True)
+    archived_at = Column(DateTime, nullable=True)
+
+    workflow = relationship("Workflow", back_populates="versions")
+
+    __table_args__ = (UniqueConstraint('workflow_id', 'version_number', name='uq_workflow_version_number'),)
+
+
+class WorkflowStateLayout(Base):
+    """Canvas positions for the visual workflow studio (Phase 30)."""
+    __tablename__ = "workflow_state_layouts"
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4, index=True)
+    workflow_id = Column(UUID(as_uuid=True), ForeignKey("workflows.id", ondelete="CASCADE"), nullable=False, index=True)
+    state_id = Column(UUID(as_uuid=True), ForeignKey("workflow_states.id", ondelete="CASCADE"), nullable=False, index=True)
+    x = Column(Float, default=0, nullable=False)
+    y = Column(Float, default=0, nullable=False)
+    updated_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc), nullable=False)
+
+    state = relationship("WorkflowState", back_populates="layout")
+
+    __table_args__ = (UniqueConstraint('workflow_id', 'state_id', name='uq_workflow_state_layout'),)
 
 class WorkflowExecutionEvent(Base):
     __tablename__ = "workflow_execution_events"
@@ -139,6 +214,8 @@ class WorkflowExecutionEvent(Base):
     actor_user_id = Column(UUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
     metadata_ = Column("metadata", JSON, nullable=True)
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), nullable=False)
+
+    execution = relationship("WorkflowExecution", back_populates="events")
 
 # Custom Fields Models
 class CustomFieldType(str, enum.Enum):
@@ -194,6 +271,8 @@ class WorkflowForm(Base):
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), nullable=False)
     updated_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc), nullable=False)
 
+    fields = relationship("WorkflowFormField", back_populates="form", cascade="all, delete-orphan")
+
 class WorkflowFormField(Base):
     __tablename__ = "workflow_form_fields"
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4, index=True)
@@ -201,3 +280,5 @@ class WorkflowFormField(Base):
     custom_field_id = Column(UUID(as_uuid=True), ForeignKey("custom_fields.id", ondelete="CASCADE"), nullable=False, index=True)
     position = Column(Integer, default=0, nullable=False)
     is_required = Column(Boolean, default=False, nullable=False)
+
+    form = relationship("WorkflowForm", back_populates="fields")
