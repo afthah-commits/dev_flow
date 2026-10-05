@@ -1,4 +1,6 @@
+import os
 
+ANALYTICS_SCHEMAS = """
 from pydantic import BaseModel, Field
 from typing import List, Optional, Dict, Any, Union
 from datetime import datetime
@@ -188,3 +190,8 @@ class AnalyticsQueryRequest(BaseModel):
 class AnalyticsQueryResponse(BaseModel):
     metric: str
     data: List[Dict[str, Any]]
+"""
+
+with open("backend/app/schemas/analytics.py", "w") as f:
+    f.write(ANALYTICS_SCHEMAS)
+    print("Updated backend/app/schemas/analytics.py with existing models")

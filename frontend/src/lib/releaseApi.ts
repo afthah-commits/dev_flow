@@ -1,5 +1,5 @@
 import { api } from './axios';
-import { Release, ReleaseReadiness, ReleaseTask, ReleasePR } from '../types/release';
+import { Release, ReleaseReadiness, ReleaseTask, ReleasePR, ReleaseApproval } from '../types/release';
 
 export const releaseApi = {
   list: async (projectId: string) => {
@@ -78,5 +78,25 @@ export const releaseApi = {
   deploy: async (releaseId: string, data: { environment_id?: string; provider?: string }) => {
     const res = await api.post(`/releases/${releaseId}/deploy`, data);
     return res.data;
+  },
+  promote: async (releaseId: string, target_env: string) => {
+    const res = await api.post(`/releases/${releaseId}/promote?target_env=${encodeURIComponent(target_env)}`);
+    return res.data as Release;
+  },
+  rollback: async (releaseId: string) => {
+    const res = await api.post(`/releases/${releaseId}/rollback`);
+    return res.data as Release;
+  },
+  requestApproval: async (releaseId: string, data: { reviewer_id: string; comment?: string }) => {
+    const res = await api.post(`/releases/${releaseId}/approvals`, data);
+    return res.data as ReleaseApproval;
+  },
+  approve: async (approvalId: string) => {
+    const res = await api.post(`/releases/approvals/${approvalId}/approve`);
+    return res.data as ReleaseApproval;
+  },
+  reject: async (approvalId: string) => {
+    const res = await api.post(`/releases/approvals/${approvalId}/reject`);
+    return res.data as ReleaseApproval;
   }
 };

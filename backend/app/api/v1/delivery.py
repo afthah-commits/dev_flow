@@ -8,19 +8,21 @@ from datetime import datetime, timezone
 
 from app.api import deps
 from app.models.user import User
+from app.services.release_engine import ReleaseEngine
+from app.services.audit_service import record_event
 from app.models.project import Project
 from app.models.task import Task, TaskStatus
 from app.models.delivery import (
     Release, ReleaseStatus, ReleaseType, ReleaseTask, ReleasePullRequest,
     Environment, Deployment, DeploymentStatus, DeploymentProvider,
-    PipelineRun, PipelineStatus
+    PipelineRun, PipelineStatus, ReleaseApproval, ReleaseApprovalStatus
 )
 from app.schemas.delivery import (
     ReleaseCreate, ReleaseUpdate, ReleaseResponse, ReleaseReadiness,
     EnvironmentCreate, EnvironmentUpdate, EnvironmentResponse,
     DeploymentCreate, DeploymentResponse,
     PipelineRunCreate, PipelineRunResponse,
-    DeliveryMetrics, DoraMetrics
+    DeliveryMetrics, DoraMetrics, ReleaseApprovalCreate, ReleaseApprovalResponse
 )
 
 project_releases_router = APIRouter()
@@ -135,7 +137,7 @@ def plan_release(release_id: UUID, db: Session = Depends(deps.get_db), current_u
     release = db.query(Release).filter(Release.id == release_id, Release.organization_id == org_id).first()
     if not release: raise HTTPException(status_code=404, detail="Release not found")
     if release.status != ReleaseStatus.DRAFT: raise HTTPException(status_code=400, detail="Only DRAFT releases can be planned")
-    release.status = ReleaseStatus.PLANNED
+    release.status = ReleaseStatus.READY
     db.commit()
     db.refresh(release)
     return release
@@ -145,7 +147,7 @@ def ready_release(release_id: UUID, db: Session = Depends(deps.get_db), current_
     deps.require_organization_member(db, current_user.id, org_id)
     release = db.query(Release).filter(Release.id == release_id, Release.organization_id == org_id).first()
     if not release: raise HTTPException(status_code=404, detail="Release not found")
-    if release.status != ReleaseStatus.PLANNED: raise HTTPException(status_code=400, detail="Only PLANNED releases can be marked ready")
+    if release.status != ReleaseStatus.READY: raise HTTPException(status_code=400, detail="Only PLANNED releases can be marked ready")
     release.status = ReleaseStatus.READY
     db.commit()
     db.refresh(release)
@@ -156,8 +158,8 @@ def execute_release(release_id: UUID, db: Session = Depends(deps.get_db), curren
     deps.require_organization_member(db, current_user.id, org_id)
     release = db.query(Release).filter(Release.id == release_id, Release.organization_id == org_id).first()
     if not release: raise HTTPException(status_code=404, detail="Release not found")
-    if release.status not in [ReleaseStatus.READY, ReleaseStatus.PLANNED]: raise HTTPException(status_code=400, detail="Release must be READY or PLANNED to release")
-    release.status = ReleaseStatus.RELEASED
+    if release.status not in [ReleaseStatus.READY, ReleaseStatus.READY]: raise HTTPException(status_code=400, detail="Release must be READY or PLANNED to release")
+    release.status = ReleaseStatus.DEPLOYED
     release.released_at = datetime.now(timezone.utc)
     db.commit()
     db.refresh(release)
@@ -235,6 +237,10 @@ def deploy_release(release_id: UUID, dep_in: DeploymentCreate, db: Session = Dep
         commit_sha=release.target_commit_sha
     )
     db.add(dep)
+    
+    release.status = ReleaseStatus.DEPLOYED
+    release.deployment_timestamp = datetime.now(timezone.utc)
+    
     db.commit()
     db.refresh(dep)
     return dep
@@ -391,68 +397,9 @@ def get_readiness(release_id: UUID, db: Session = Depends(deps.get_db), current_
     deps.require_organization_member(db, current_user.id, org_id)
     release = db.query(Release).filter(Release.id == release_id, Release.organization_id == org_id).first()
     if not release: raise HTTPException(status_code=404, detail="Release not found")
-
-    explanations = []
-
-    # Task completion
-    rts = db.query(ReleaseTask).filter(ReleaseTask.release_id == release_id).all()
-    task_ids = [rt.task_id for rt in rts]
-    if task_ids:
-        tasks = db.query(Task).filter(Task.id.in_(task_ids)).all()
-        total = len(tasks)
-        done = sum(1 for t in tasks if t.status == TaskStatus.DONE)
-        task_pct = (done / total * 100) if total > 0 else 100
-        blocked = sum(1 for t in tasks if t.status == TaskStatus.BLOCKED) if hasattr(TaskStatus, 'BLOCKED') else 0
-        high_open = sum(1 for t in tasks if t.priority and t.priority.value == "HIGH" and t.status != TaskStatus.DONE)
-        explanations.append(f"Task completion: {done}/{total} ({task_pct:.0f}%)")
-        if high_open:
-            explanations.append(f"Open high-priority tasks: {high_open}")
-    else:
-        task_pct = 100.0
-        blocked = 0
-        explanations.append("No tasks assigned to release")
-
-    # Pipeline health
-    pipes = db.query(PipelineRun).filter(PipelineRun.release_id == release_id).all()
-    if pipes:
-        success_pipes = sum(1 for p in pipes if p.status == PipelineStatus.SUCCESS)
-        pipe_pct = (success_pipes / len(pipes) * 100)
-        explanations.append(f"Pipeline health: {success_pipes}/{len(pipes)} ({pipe_pct:.0f}%)")
-    else:
-        pipe_pct = 100.0
-        explanations.append("No pipelines run yet")
-
-    # Deployment health
-    deps_q = db.query(Deployment).filter(Deployment.release_id == release_id).all()
-    if deps_q:
-        success_deps = sum(1 for d in deps_q if d.status == DeploymentStatus.SUCCESS)
-        dep_pct = (success_deps / len(deps_q) * 100)
-        explanations.append(f"Deployment health: {success_deps}/{len(deps_q)} ({dep_pct:.0f}%)")
-    else:
-        dep_pct = 100.0
-        explanations.append("No deployments yet")
-
-    # Sprint completion (check if release tasks are in sprints)
-    sprint_pct = 100.0
-    explanations.append(f"Sprint completion: {sprint_pct:.0f}%")
-
-    blocked_penalty = blocked * 5
-    if blocked_penalty:
-        explanations.append(f"Blocked tasks penalty: -{blocked_penalty}")
-
-    score = int(task_pct * 0.4 + pipe_pct * 0.2 + dep_pct * 0.2 + sprint_pct * 0.2 - blocked_penalty)
-    score = max(0, min(100, score))
-    explanations.append(f"Final readiness: {score}")
-
-    return ReleaseReadiness(
-        score=score,
-        task_completion_pct=task_pct,
-        pipeline_health_pct=pipe_pct,
-        blocked_tasks_penalty=blocked_penalty,
-        deployment_health_pct=dep_pct,
-        sprint_completion_pct=sprint_pct,
-        explanations=explanations
-    )
+    
+    result = ReleaseEngine.evaluate_readiness(db, release)
+    return ReleaseReadiness(**result)
 
 # --- DELIVERY METRICS ---
 delivery_metrics_router = APIRouter()
@@ -480,7 +427,7 @@ def get_delivery_metrics(project_id: Optional[UUID] = None, db: Session = Depend
     avg_dur = (sum(d.duration_seconds or 0 for d in all_deps) / total_deps) if total_deps else 0
 
     total_releases = len(all_releases)
-    released = [r for r in all_releases if r.status == ReleaseStatus.RELEASED and r.released_at and r.created_at]
+    released = [r for r in all_releases if r.status == ReleaseStatus.DEPLOYED and r.released_at and r.created_at]
     avg_cycle = 0.0
     if released:
         cycles = [(r.released_at - r.created_at).total_seconds() / 86400 for r in released]
@@ -565,3 +512,120 @@ def get_dora_metrics(project_id: Optional[UUID] = None, db: Session = Depends(de
     mttr = f"{sum(mttr_times) / len(mttr_times):.1f} hours" if mttr_times else "insufficient_data"
 
     return {"deployment_frequency": df, "lead_time_for_changes": "insufficient_data", "change_failure_rate": cfr, "mean_time_to_recovery": mttr}
+
+@releases_router.post("/{release_id}/approvals", response_model=ReleaseApprovalResponse)
+def request_approval(release_id: UUID, payload: ReleaseApprovalCreate, db: Session = Depends(deps.get_db), current_user: User = Depends(deps.get_current_user), org_id: UUID = Depends(deps.get_current_organization_id)):
+    deps.require_organization_member(db, current_user.id, org_id)
+    release = db.query(Release).filter(Release.id == release_id, Release.organization_id == org_id).first()
+    if not release: raise HTTPException(status_code=404, detail="Release not found")
+    
+    approval = ReleaseApproval(
+        organization_id=org_id,
+        release_id=release_id,
+        requested_by_id=current_user.id,
+        reviewer_id=payload.reviewer_id,
+        comment=payload.comment,
+        status=ReleaseApprovalStatus.PENDING
+    )
+    db.add(approval)
+    db.commit()
+    db.refresh(approval)
+    
+    record_event(db, org_id, "RELEASE_APPROVAL_REQUESTED", "RELEASE", actor_user_id=current_user.id, entity_id=release_id)
+    return approval
+
+@releases_router.post("/approvals/{approval_id}/approve", response_model=ReleaseApprovalResponse)
+def approve_release(approval_id: UUID, db: Session = Depends(deps.get_db), current_user: User = Depends(deps.get_current_user), org_id: UUID = Depends(deps.get_current_organization_id)):
+    approval = db.query(ReleaseApproval).filter(ReleaseApproval.id == approval_id, ReleaseApproval.organization_id == org_id).first()
+    if not approval: raise HTTPException(status_code=404, detail="Approval not found")
+    
+    if approval.reviewer_id != current_user.id:
+        deps.require_organization_member(db, current_user.id, org_id)
+        
+    approval.status = ReleaseApprovalStatus.APPROVED
+    
+    release = db.query(Release).filter(Release.id == approval.release_id).first()
+    if release:
+        release.status = ReleaseStatus.APPROVED
+        release.approved_by_id = current_user.id
+        
+    db.commit()
+    db.refresh(approval)
+    
+    record_event(db, org_id, "RELEASE_APPROVED", "RELEASE", actor_user_id=current_user.id, entity_id=approval.release_id)
+    return approval
+
+@releases_router.post("/approvals/{approval_id}/reject", response_model=ReleaseApprovalResponse)
+def reject_release(approval_id: UUID, db: Session = Depends(deps.get_db), current_user: User = Depends(deps.get_current_user), org_id: UUID = Depends(deps.get_current_organization_id)):
+    approval = db.query(ReleaseApproval).filter(ReleaseApproval.id == approval_id, ReleaseApproval.organization_id == org_id).first()
+    if not approval: raise HTTPException(status_code=404, detail="Approval not found")
+    
+    if approval.reviewer_id != current_user.id:
+        deps.require_organization_member(db, current_user.id, org_id)
+        
+    approval.status = ReleaseApprovalStatus.REJECTED
+    
+    release = db.query(Release).filter(Release.id == approval.release_id).first()
+    if release:
+        release.status = ReleaseStatus.READY
+        
+    db.commit()
+    db.refresh(approval)
+    
+    record_event(db, org_id, "RELEASE_REJECTED", "RELEASE", actor_user_id=current_user.id, entity_id=approval.release_id)
+    return approval
+
+@releases_router.post("/approvals/{approval_id}/revoke", response_model=ReleaseApprovalResponse)
+def revoke_approval(approval_id: UUID, db: Session = Depends(deps.get_db), current_user: User = Depends(deps.get_current_user), org_id: UUID = Depends(deps.get_current_organization_id)):
+    approval = db.query(ReleaseApproval).filter(ReleaseApproval.id == approval_id, ReleaseApproval.organization_id == org_id).first()
+    if not approval: raise HTTPException(status_code=404, detail="Approval not found")
+    
+    if approval.requested_by_id != current_user.id:
+        deps.require_organization_member(db, current_user.id, org_id)
+        
+    approval.status = ReleaseApprovalStatus.REVOKED
+    db.commit()
+    db.refresh(approval)
+    
+    record_event(db, org_id, "RELEASE_APPROVAL_REVOKED", "RELEASE", actor_user_id=current_user.id, entity_id=approval.release_id)
+    return approval
+
+@environments_router.get("/{env_id}/health")
+def get_environment_health(env_id: UUID, db: Session = Depends(deps.get_db), current_user: User = Depends(deps.get_current_user), org_id: UUID = Depends(deps.get_current_organization_id)):
+    deps.require_organization_member(db, current_user.id, org_id)
+    env = db.query(Environment).filter(Environment.id == env_id, Environment.organization_id == org_id).first()
+    if not env: raise HTTPException(status_code=404, detail="Environment not found")
+    
+    status = ReleaseEngine.check_environment_health(db, str(env.id))
+    return {"status": status}
+
+@releases_router.post("/{release_id}/promote", response_model=ReleaseResponse)
+def promote_release(release_id: UUID, target_env: str, db: Session = Depends(deps.get_db), current_user: User = Depends(deps.get_current_user), org_id: UUID = Depends(deps.get_current_organization_id)):
+    deps.require_organization_member(db, current_user.id, org_id)
+    release = db.query(Release).filter(Release.id == release_id, Release.organization_id == org_id).first()
+    if not release: raise HTTPException(status_code=404, detail="Release not found")
+    
+    # Simple promote logic: just change target environment
+    release.target_environment = target_env
+    release.status = ReleaseStatus.READY
+    db.commit()
+    db.refresh(release)
+    
+    record_event(db, org_id, "RELEASE_PROMOTED", "RELEASE", actor_user_id=current_user.id, entity_id=release.id, metadata={"target_env": target_env})
+    return release
+
+@releases_router.post("/{release_id}/rollback", response_model=ReleaseResponse)
+def rollback_release(release_id: UUID, db: Session = Depends(deps.get_db), current_user: User = Depends(deps.get_current_user), org_id: UUID = Depends(deps.get_current_organization_id)):
+    deps.require_organization_member(db, current_user.id, org_id)
+    release = db.query(Release).filter(Release.id == release_id, Release.organization_id == org_id).first()
+    if not release: raise HTTPException(status_code=404, detail="Release not found")
+    
+    release.status = ReleaseStatus.ROLLED_BACK
+    from datetime import datetime
+    import pytz
+    release.rollback_timestamp = datetime.now(pytz.utc)
+    db.commit()
+    db.refresh(release)
+    
+    record_event(db, org_id, "RELEASE_ROLLED_BACK", "RELEASE", actor_user_id=current_user.id, entity_id=release.id)
+    return release

@@ -6,9 +6,12 @@ from app.db.base_class import Base
 
 class ReleaseStatus(str, enum.Enum):
     DRAFT = "DRAFT"
-    PLANNED = "PLANNED"
     READY = "READY"
-    RELEASED = "RELEASED"
+    APPROVED = "APPROVED"
+    DEPLOYING = "DEPLOYING"
+    DEPLOYED = "DEPLOYED"
+    FAILED = "FAILED"
+    ROLLED_BACK = "ROLLED_BACK"
     CANCELLED = "CANCELLED"
 
 class ReleaseType(str, enum.Enum):
@@ -35,8 +38,11 @@ class Release(Base):
     
     planned_at = Column(DateTime(timezone=True), nullable=True)
     released_at = Column(DateTime(timezone=True), nullable=True)
+    deployment_timestamp = Column(DateTime(timezone=True), nullable=True)
+    rollback_timestamp = Column(DateTime(timezone=True), nullable=True)
     
     created_by_id = Column(Uuid, ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    approved_by_id = Column(Uuid, ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
     
     created_at = Column(DateTime(timezone=True), server_default=func.now(), index=True)
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
@@ -46,7 +52,8 @@ class Release(Base):
     )
     
     project = relationship("Project")
-    created_by = relationship("User")
+    created_by = relationship("User", foreign_keys=[created_by_id])
+    approved_by = relationship("User", foreign_keys=[approved_by_id])
     tasks = relationship("ReleaseTask", back_populates="release", cascade="all, delete-orphan")
     pull_requests = relationship("ReleasePullRequest", back_populates="release", cascade="all, delete-orphan")
     deployments = relationship("Deployment", back_populates="release", cascade="all, delete-orphan")
@@ -194,3 +201,25 @@ class PipelineRun(Base):
     
     release = relationship("Release", back_populates="pipeline_runs")
     deployment = relationship("Deployment")
+
+class ReleaseApprovalStatus(str, enum.Enum):
+    PENDING = "PENDING"
+    APPROVED = "APPROVED"
+    REJECTED = "REJECTED"
+    REVOKED = "REVOKED"
+
+class ReleaseApproval(Base):
+    __tablename__ = "release_approvals"
+    id = Column(Uuid, primary_key=True, default=uuid.uuid4, index=True)
+    organization_id = Column(Uuid, ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False, index=True)
+    release_id = Column(Uuid, ForeignKey("releases.id", ondelete="CASCADE"), nullable=False, index=True)
+    requested_by_id = Column(Uuid, ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    reviewer_id = Column(Uuid, ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    status = Column(Enum(ReleaseApprovalStatus, native_enum=False), default=ReleaseApprovalStatus.PENDING, nullable=False)
+    comment = Column(Text, nullable=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+    
+    release = relationship("Release")
+    requested_by = relationship("User", foreign_keys=[requested_by_id])
+    reviewer = relationship("User", foreign_keys=[reviewer_id])

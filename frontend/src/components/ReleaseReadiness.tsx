@@ -27,7 +27,7 @@ export default function ReleaseReadiness({ releaseId }: { releaseId: string }) {
       <div className="flex items-center justify-between mb-4">
         <h3 className="text-lg font-medium text-white flex items-center gap-2">
           <Activity className="w-5 h-5" />
-          Release Readiness Score
+          Release Readiness {readiness.ready ? "(READY)" : "(NOT READY)"}
         </h3>
         <div className={`text-3xl font-bold ${getScoreColor(readiness.score)}`}>
           {readiness.score}
@@ -35,16 +35,18 @@ export default function ReleaseReadiness({ releaseId }: { releaseId: string }) {
       </div>
       
       <div className="space-y-2">
-        {readiness.explanations.map((exp, i) => (
+        {readiness.checks.map((check, i) => (
           <div key={i} className="flex items-start gap-2 text-sm text-gray-300">
-            {exp.includes('penalty') ? (
+            {check.status === 'WARNING' ? (
               <AlertTriangle className="w-4 h-4 text-yellow-500 shrink-0 mt-0.5" />
-            ) : exp.includes('100%') ? (
+            ) : check.status === 'PASS' ? (
               <CheckCircle2 className="w-4 h-4 text-green-500 shrink-0 mt-0.5" />
             ) : (
-              <div className="w-4 h-4 rounded-full bg-blue-500/20 border border-blue-500/50 shrink-0 mt-0.5" />
+              <XCircle className="w-4 h-4 text-red-500 shrink-0 mt-0.5" />
             )}
-            <span>{exp}</span>
+            <div>
+              <span className="font-medium">{check.name}:</span> {check.message}
+            </div>
           </div>
         ))}
       </div>

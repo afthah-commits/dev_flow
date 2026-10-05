@@ -64,7 +64,7 @@ def test_delivery_flow(client):
     # 10. Plan
     res = client.post(f"/api/v1/releases/{release_id}/plan", headers=headers)
     assert res.status_code == 200
-    assert res.json()["status"] == "PLANNED"
+    assert res.json()["status"] == "READY"
 
     # 11. Invalid transition: plan again
     res = client.post(f"/api/v1/releases/{release_id}/plan", headers=headers)
@@ -78,7 +78,7 @@ def test_delivery_flow(client):
     # 13. Release
     res = client.post(f"/api/v1/releases/{release_id}/release", headers=headers)
     assert res.status_code == 200
-    assert res.json()["status"] == "RELEASED"
+    assert res.json()["status"] == "DEPLOYED"
     assert res.json()["released_at"] is not None
 
     # =========================
@@ -185,7 +185,9 @@ def test_delivery_flow(client):
     assert res.status_code == 200
     readiness = res.json()
     assert "score" in readiness
-    assert "explanations" in readiness
+    assert "checks" in readiness
+    assert "ready" in readiness
+    assert "score" in readiness
 
     # =========================
     # RELEASE NOTES

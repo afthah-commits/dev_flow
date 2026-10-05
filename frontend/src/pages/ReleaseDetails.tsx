@@ -3,7 +3,7 @@ import { useParams, Link } from 'react-router-dom';
 import { releaseApi } from '../lib/releaseApi';
 import { Release, ReleaseTask, ReleasePR } from '../types/release';
 import ReleaseReadiness from '../components/ReleaseReadiness';
-import { Rocket, ArrowLeft, Play, Server, FileText } from 'lucide-react';
+import { Rocket, ArrowLeft, Play, Server, FileText, Check, X, RotateCcw } from 'lucide-react';
 import { environmentApi } from '../lib/environmentApi';
 import { Environment } from '../types/environment';
 
@@ -38,13 +38,6 @@ export default function ReleaseDetails() {
 
   if (loading || !release) return <div className="p-8 text-center text-gray-500">Loading release details...</div>;
 
-  const handleAction = async (action: 'plan' | 'ready' | 'release' | 'cancel') => {
-    if (!releaseId) return;
-    const fn = releaseApi[action];
-    const r = await fn(releaseId);
-    setRelease(r);
-  };
-
   const handleGenerateNotes = async () => {
     if (!projectId || !releaseId) return;
     setGenerating(true);
@@ -59,8 +52,29 @@ export default function ReleaseDetails() {
 
   const handleDeploy = async () => {
     if (!releaseId || !deployEnv) return;
-    await releaseApi.deploy(releaseId, { environment_id: deployEnv, provider: 'MOCK' });
-    alert('Deployment triggered!');
+    try {
+      await releaseApi.deploy(releaseId, { environment_id: deployEnv, provider: 'MOCK' });
+      const updated = await releaseApi.get(projectId!, releaseId);
+      setRelease(updated);
+      alert('Deployment triggered!');
+    } catch (e) {
+      alert('Deployment failed. Check environment health or readiness.');
+    }
+  };
+
+  const handlePromote = async () => {
+    if (!releaseId || !deployEnv) return;
+    const envName = envs.find(e => e.id === deployEnv)?.name || deployEnv;
+    const updated = await releaseApi.promote(releaseId, envName);
+    setRelease(updated);
+  };
+
+  const handleRollback = async () => {
+    if (!releaseId) return;
+    if (confirm('Are you sure you want to rollback this release?')) {
+      const updated = await releaseApi.rollback(releaseId);
+      setRelease(updated);
+    }
   };
 
   return (
@@ -73,22 +87,24 @@ export default function ReleaseDetails() {
           <div className="flex items-center gap-3">
             <h1 className="text-2xl font-bold text-white">{release.version}</h1>
             <span className={`px-2.5 py-0.5 rounded-full text-xs font-medium ${
-              release.status === 'RELEASED' ? 'bg-green-500/10 text-green-400' :
+              release.status === 'DEPLOYED' ? 'bg-green-500/10 text-green-400' :
               release.status === 'READY' ? 'bg-blue-500/10 text-blue-400' :
-              release.status === 'PLANNED' ? 'bg-purple-500/10 text-purple-400' :
+              release.status === 'APPROVED' ? 'bg-purple-500/10 text-purple-400' :
+              release.status === 'FAILED' ? 'bg-red-500/10 text-red-400' :
               'bg-gray-700 text-gray-300'
             }`}>
               {release.status}
             </span>
           </div>
-          <p className="text-gray-400 mt-1">{release.name} • {release.release_type}</p>
+          <p className="text-gray-400 mt-1">{release.name} — {release.release_type}</p>
         </div>
         
         <div className="ml-auto flex gap-2">
-          {release.status === 'DRAFT' && <button onClick={() => handleAction('plan')} className="px-4 py-2 bg-gray-800 text-white rounded hover:bg-gray-700 font-medium text-sm">Plan Release</button>}
-          {release.status === 'PLANNED' && <button onClick={() => handleAction('ready')} className="px-4 py-2 bg-gray-800 text-white rounded hover:bg-gray-700 font-medium text-sm">Mark Ready</button>}
-          {release.status === 'READY' && <button onClick={() => handleAction('release')} className="px-4 py-2 bg-indigo-600 text-white rounded hover:bg-indigo-700 font-medium text-sm flex items-center gap-2"><Rocket className="w-4 h-4"/> Publish Release</button>}
-          {release.status !== 'CANCELLED' && release.status !== 'RELEASED' && <button onClick={() => handleAction('cancel')} className="px-4 py-2 border border-gray-700 text-red-400 rounded hover:bg-gray-800 font-medium text-sm">Cancel</button>}
+          {release.status === 'DEPLOYED' && (
+            <button onClick={handleRollback} className="px-4 py-2 bg-red-900/30 text-red-400 border border-red-900/50 rounded hover:bg-red-900/50 font-medium text-sm flex items-center gap-2">
+              <RotateCcw className="w-4 h-4" /> Rollback
+            </button>
+          )}
         </div>
       </div>
 
@@ -127,17 +143,6 @@ export default function ReleaseDetails() {
                   {tasks.length === 0 && <li className="text-gray-500 text-sm italic">No tasks included.</li>}
                 </ul>
               </div>
-              <div>
-                <h4 className="text-sm font-medium text-gray-400 mb-2 uppercase">Pull Requests ({prs.length})</h4>
-                <ul className="space-y-2">
-                  {prs.map(p => (
-                    <li key={p.id} className="text-sm bg-gray-800 p-2 rounded text-indigo-400">
-                      <a href={p.pr_url || '#'} target="_blank" rel="noreferrer">#{p.pr_number} {p.pr_title}</a>
-                    </li>
-                  ))}
-                  {prs.length === 0 && <li className="text-gray-500 text-sm italic">No pull requests included.</li>}
-                </ul>
-              </div>
             </div>
           </div>
         </div>
@@ -154,13 +159,23 @@ export default function ReleaseDetails() {
                 {envs.map(e => <option key={e.id} value={e.id}>{e.name}</option>)}
                 {envs.length === 0 && <option value="">No environments setup</option>}
               </select>
-              <button 
-                onClick={handleDeploy}
-                disabled={!deployEnv}
-                className="w-full bg-blue-600 hover:bg-blue-700 text-white rounded p-2 flex justify-center items-center gap-2 text-sm font-medium transition-colors disabled:opacity-50"
-              >
-                <Play className="w-4 h-4" /> Deploy to Environment
-              </button>
+              
+              <div className="grid grid-cols-2 gap-2">
+                <button 
+                  onClick={handleDeploy}
+                  disabled={!deployEnv || release.status === 'DEPLOYING'}
+                  className="w-full bg-indigo-600 hover:bg-indigo-700 text-white rounded p-2 flex justify-center items-center gap-2 text-sm font-medium transition-colors disabled:opacity-50"
+                >
+                  <Play className="w-4 h-4" /> Deploy
+                </button>
+                <button 
+                  onClick={handlePromote}
+                  disabled={!deployEnv}
+                  className="w-full bg-gray-800 hover:bg-gray-700 border border-gray-700 text-white rounded p-2 flex justify-center items-center gap-2 text-sm font-medium transition-colors disabled:opacity-50"
+                >
+                  <Rocket className="w-4 h-4" /> Promote
+                </button>
+              </div>
             </div>
           </div>
         </div>

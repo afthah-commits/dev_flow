@@ -1,4 +1,6 @@
+import os
 
+SERVICE_CONTENT = """
 from sqlalchemy.orm import Session
 from sqlalchemy import func, case
 from datetime import datetime, timedelta, timezone
@@ -11,26 +13,11 @@ from app.models.delivery import Deployment, Release
 from app.models.time import TimeEntry
 from app.models.workflow import Workflow, WorkflowExecution
 from app.models.automation import Automation, AutomationExecution
-from app.models.client import ClientRequest
-from app.models.knowledge import KnowledgeDocument, KnowledgeSpace
+from app.models.client_portal import ClientRequest
+from app.models.knowledge import Document, Space
 from app.models.collaboration import Comment, Discussion
 from app.models.user import User
 from app.schemas.analytics import AnalyticsQueryRequest, AnalyticsQueryResponse
-
-def calculate_project_health(db: Session, project_id: UUID) -> dict:
-    tasks = db.query(Task).filter(Task.project_id == str(project_id)).all()
-    if not tasks: return {"score": 100, "status": "Healthy"}
-    total = len(tasks)
-    completed = sum(1 for t in tasks if t.status == TaskStatus.DONE)
-    now = datetime.now(timezone.utc)
-    overdue = sum(1 for t in tasks if t.due_date and t.due_date.replace(tzinfo=timezone.utc) < now and t.status != TaskStatus.DONE)
-    score = 100
-    score -= (overdue / total) * 40
-    score += (completed / total) * 20
-    score = max(0, min(100, int(score)))
-    status = "Healthy" if score >= 80 else "Attention" if score >= 50 else "At Risk"
-    return {"score": score, "status": status}
-
 
 def get_dashboard_overview(db: Session, org_id: UUID) -> dict:
     projects = db.query(Project).filter(Project.organization_id == str(org_id)).all()
@@ -237,8 +224,8 @@ def get_client_analytics(db: Session, org_id: UUID) -> dict:
     }
 
 def get_knowledge_analytics(db: Session, org_id: UUID) -> dict:
-    spaces = db.query(KnowledgeSpace).filter(KnowledgeSpace.organization_id == str(org_id)).count()
-    docs = db.query(KnowledgeDocument).join(KnowledgeSpace).filter(KnowledgeSpace.organization_id == str(org_id)).all()
+    spaces = db.query(Space).filter(Space.organization_id == str(org_id)).count()
+    docs = db.query(Document).join(Space).filter(Space.organization_id == str(org_id)).all()
     
     return {
         "spaces": spaces,
@@ -275,3 +262,8 @@ def get_usage_analytics(db: Session, org_id: UUID) -> dict:
 def execute_analytics_query(db: Session, org_id: UUID, request: AnalyticsQueryRequest) -> AnalyticsQueryResponse:
     return AnalyticsQueryResponse(metric=request.metric, data=[])
 
+"""
+
+with open("backend/app/services/analytics_service.py", "w") as f:
+    f.write(SERVICE_CONTENT)
+    print("Updated backend/app/services/analytics_service.py")

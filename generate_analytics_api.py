@@ -1,4 +1,6 @@
+import os
 
+API_ANALYTICS = """
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from typing import Any, List, Optional
@@ -210,3 +212,8 @@ def query_analytics_api(
         
     return execute_analytics_query(db, org_id, request)
 
+"""
+
+with open("backend/app/api/v1/analytics.py", "w") as f:
+    f.write(API_ANALYTICS)
+    print("Updated backend/app/api/v1/analytics.py")

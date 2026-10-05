@@ -78,9 +78,10 @@ export default function Releases() {
                 <td className="px-4 py-3">{r.name}</td>
                 <td className="px-4 py-3">
                   <span className={`px-2 py-1 rounded-full text-xs ${
-                    r.status === 'RELEASED' ? 'bg-green-500/10 text-green-400' :
+                    r.status === 'DEPLOYED' ? 'bg-green-500/10 text-green-400' :
                     r.status === 'READY' ? 'bg-blue-500/10 text-blue-400' :
-                    r.status === 'PLANNED' ? 'bg-purple-500/10 text-purple-400' :
+                    r.status === 'APPROVED' ? 'bg-purple-500/10 text-purple-400' :
+                    r.status === 'FAILED' ? 'bg-red-500/10 text-red-400' :
                     'bg-gray-700 text-gray-300'
                   }`}>
                     {r.status}

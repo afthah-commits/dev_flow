@@ -48,6 +48,7 @@ import Timesheet from "./pages/Timesheet";
 import ProductivityAnalytics from "./pages/ProductivityAnalytics";
 import OrganizationLayout from "./pages/OrganizationLayout";
 import ReleaseDetails from "./pages/ReleaseDetails";
+import ReleaseOperations from "./pages/ReleaseOperations";
 import DeliveryAnalytics from "./pages/DeliveryAnalytics";
 import { JobCenter } from "./pages/jobs/JobCenter";
 import AICommandCenter from "./pages/AICommandCenter";
@@ -87,6 +88,7 @@ export default function App() {
               <Route path="/settings/security-center" element={<SecurityCenter />} />
             <Route path="/projects/:projectId/edit" element={<ProjectForm />} />
             <Route path="/projects/:projectId/releases/:releaseId" element={<ReleaseDetails />} />
+            <Route path="/releases/operations" element={<ReleaseOperations />} />
             <Route path="/settings/integrations" element={<GitHubSettings />} />
             <Route path="/settings/integrations/github/callback" element={<GitHubCallback />} />
             <Route path="/settings/notifications" element={<NotificationPreferences />} />
