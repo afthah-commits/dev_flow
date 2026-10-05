@@ -32,3 +32,4 @@ from app.models.client import Client, ClientUser, ClientProjectAccess, ClientInv
 from app.models.workflow import Workflow, WorkflowState, WorkflowTransition, WorkflowCondition, WorkflowAction, WorkflowApproval, WorkflowExecution, WorkflowExecutionEvent, CustomField, CustomFieldValue, WorkflowForm, WorkflowFormField, WorkflowVersion, WorkflowStateLayout
 
 
+from app.models.daily_report import DailyReport

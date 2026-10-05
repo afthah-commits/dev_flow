@@ -16,6 +16,10 @@ import ApiKeys from './pages/settings/ApiKeys';
 import Security from './pages/settings/Security';
 import Usage from './pages/settings/Usage';
 import AdminSystem from './pages/AdminSystem';
+import DailyReports from './pages/DailyReports';
+import DailyReportForm from './pages/DailyReportForm';
+import DailyReportDetails from './pages/DailyReportDetails';
+
 
 import Environments from './pages/infrastructure/Environments';
 import EnvironmentDetails from './pages/infrastructure/EnvironmentDetails';

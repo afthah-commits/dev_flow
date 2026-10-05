@@ -1,20 +1,19 @@
-with open('backend/app/api/v1/security.py', 'r') as f:
-    c = f.read()
+import os
 
-c = c.replace('from app.models.security import UserSession',
-              'from app.models.security import UserSession\nfrom app.models.audit import AuditEvent')
+def fix_audit():
+    path = "backend/app/api/v1/daily_reports.py"
+    with open(path, "r") as f:
+        content = f.read()
 
-c = c.replace('current_user.mfa_enabled = True',
-              '''current_user.mfa_enabled = True
-    db.add(AuditEvent(actor_user_id=current_user.id, event_type="mfa.enabled"))''')
+    # Replacements
+    content = content.replace("actor_id=", "actor_user_id=")
+    content = content.replace('action="', 'event_type="')
+    content = content.replace("target_id=", "entity_id=")
+    content = content.replace("target_type=", "entity_type=")
+    content = content.replace("details=", "metadata_=")
 
-c = c.replace('current_user.mfa_enabled = False',
-              '''current_user.mfa_enabled = False
-    db.add(AuditEvent(actor_user_id=current_user.id, event_type="mfa.disabled"))''')
+    with open(path, "w") as f:
+        f.write(content)
 
-c = c.replace('session.revoked_at = datetime.now()',
-              '''session.revoked_at = datetime.now()
-    db.add(AuditEvent(actor_user_id=current_user.id, event_type="session.revoked"))''')
-
-with open('backend/app/api/v1/security.py', 'w') as f:
-    f.write(c)
+if __name__ == "__main__":
+    fix_audit()

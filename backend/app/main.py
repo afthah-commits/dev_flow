@@ -1,7 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.core.config import settings
-from app.api.v1 import auth, projects, tasks, dashboard, github, ai, analytics, notifications, organizations, teams, invitations, labels, templates, sprints, milestones, backlog, roadmap, audit, time, jobs, realtime
+from app.api.v1 import daily_reports, auth, projects, tasks, dashboard, github, ai, analytics, notifications, organizations, teams, invitations, labels, templates, sprints, milestones, backlog, roadmap, audit, time, jobs, realtime
 from app.api.v1.delivery import (
     project_releases_router, releases_router, environments_router,
     project_deployments_router, deployments_router, pipelines_router,
@@ -39,6 +39,8 @@ app.add_middleware(
 )
 
 app.include_router(auth.router, prefix=f"{settings.API_V1_STR}/auth", tags=["auth"])
+app.include_router(daily_reports.router, prefix=f"{settings.API_V1_STR}/daily-reports", tags=["daily-reports"])
+
 app.include_router(organizations.router, prefix=f"{settings.API_V1_STR}/organizations", tags=["organizations"])
 app.include_router(teams.router, prefix=f"{settings.API_V1_STR}", tags=["teams"])
 app.include_router(invitations.router, prefix=f"{settings.API_V1_STR}/invitations", tags=["invitations"])
