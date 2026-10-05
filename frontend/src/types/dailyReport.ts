@@ -23,3 +23,39 @@ export interface DailyReportUpdate {
     next_plan?: string[];
     blockers?: string[];
 }
+
+export interface DailyReportSummaryResponse {
+    total_reports: number;
+    completed_task_count: number;
+    next_plan_count: number;
+    blocker_count: number;
+    unique_contributors: number;
+    missing_reports: number;
+    date?: string;
+}
+
+export interface TeamDailyReportResponse extends DailyReport {
+    author_name?: string;
+}
+
+export interface BlockerSummaryResponse {
+    blocker: string;
+    occurrences: number;
+    latest_report_date: string;
+    reporters: string[];
+}
+
+export interface DailyTrendItem {
+    date: string;
+    reports_submitted: number;
+    completed_tasks: number;
+}
+
+export interface WeeklySummaryResponse {
+    start_date: string;
+    end_date: string;
+    total_reports: number;
+    completed_tasks: number;
+    blockers: number;
+    trend: DailyTrendItem[];
+}

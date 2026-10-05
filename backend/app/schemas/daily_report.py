@@ -1,3 +1,4 @@
+import datetime as pdt
 from pydantic import BaseModel, Field
 from typing import List, Optional
 from datetime import date, datetime
@@ -13,7 +14,7 @@ class DailyReportCreate(DailyReportBase):
     pass
 
 class DailyReportUpdate(BaseModel):
-    report_date: Optional[date] = None
+    report_date: Optional[pdt.date] = None
     completed_tasks: Optional[List[str]] = None
     next_plan: Optional[List[str]] = None
     blockers: Optional[List[str]] = None
@@ -27,3 +28,34 @@ class DailyReportResponse(DailyReportBase):
 
     class Config:
         from_attributes = True
+
+class DailyReportSummaryResponse(BaseModel):
+    total_reports: int
+    completed_task_count: int
+    next_plan_count: int
+    blocker_count: int
+    unique_contributors: int
+    missing_reports: int
+    date: Optional[pdt.date] = None
+
+class TeamDailyReportResponse(DailyReportResponse):
+    author_name: Optional[str] = None
+
+class BlockerSummaryResponse(BaseModel):
+    blocker: str
+    occurrences: int
+    latest_report_date: date
+    reporters: List[str]
+
+class DailyTrendItem(BaseModel):
+    date: pdt.date
+    reports_submitted: int
+    completed_tasks: int
+
+class WeeklySummaryResponse(BaseModel):
+    start_date: date
+    end_date: date
+    total_reports: int
+    completed_tasks: int
+    blockers: int
+    trend: List[DailyTrendItem]

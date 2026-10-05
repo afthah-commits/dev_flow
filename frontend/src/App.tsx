@@ -19,6 +19,10 @@ import AdminSystem from './pages/AdminSystem';
 import DailyReports from './pages/DailyReports';
 import DailyReportForm from './pages/DailyReportForm';
 import DailyReportDetails from './pages/DailyReportDetails';
+import TeamDailyReports from './pages/TeamDailyReports';
+import WeeklyDailyReports from './pages/WeeklyDailyReports';
+import BlockerDailyReports from './pages/BlockerDailyReports';
+
 
 
 import Environments from './pages/infrastructure/Environments';

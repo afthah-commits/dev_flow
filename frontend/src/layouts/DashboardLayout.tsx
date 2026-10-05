@@ -56,6 +56,15 @@ export default function DashboardLayout() {
           <Link to="/organization" className="hover:text-white transition-colors">Organization</Link>
           <Link to="/time" className="hover:text-white transition-colors">Time</Link>
           <Link to="/analytics/productivity" className="hover:text-white transition-colors">Productivity</Link>
+          <div className="relative group">
+            <span className="hover:text-white transition-colors cursor-pointer">Daily Reports</span>
+            <div className="absolute hidden group-hover:block bg-gray-800 p-2 rounded shadow-lg z-10 w-40">
+              <Link to="/daily-reports" className="block text-sm py-1 hover:text-white">My Reports</Link>
+              <Link to="/daily-reports/team" className="block text-sm py-1 hover:text-white">Team Reports</Link>
+              <Link to="/daily-reports/weekly" className="block text-sm py-1 hover:text-white">Weekly Summary</Link>
+              <Link to="/daily-reports/blockers" className="block text-sm py-1 hover:text-white">Blockers</Link>
+            </div>
+          </div>
           <Link to="/profile" className="hover:text-white transition-colors">Profile</Link>
           <div className="flex items-center space-x-3 ml-4 border-l border-gray-700 pl-4">
             <NotificationCenter />
