@@ -49,7 +49,7 @@ def get_current_user(
 
 
 from app.models.organization import OrganizationMember, OrganizationRole
-from fastapi import Header
+from fastapi import Header, Depends
 from typing import Optional
 
 def get_current_organization_id(
@@ -86,6 +86,24 @@ def require_organization_member(
     set_current_org_id(organization_id)
         
     return member
+
+
+def require_current_organization_id(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+    org_id: Optional[UUID] = Depends(get_current_organization_id),
+) -> UUID:
+    """Resolve the X-Organization-Id header AND validate membership.
+
+    Phase 31: endpoints that trusted the header alone allowed any
+    authenticated user to read/write another organization's data by simply
+    sending a different X-Organization-Id. This dependency is a drop-in
+    replacement for get_current_organization_id that also enforces tenancy.
+    """
+    if not org_id:
+        raise HTTPException(status_code=400, detail="X-Organization-Id header required")
+    require_organization_member(db, current_user.id, org_id)
+    return org_id
 
 from fastapi.security import APIKeyHeader
 from app.models.api_key import APIKey

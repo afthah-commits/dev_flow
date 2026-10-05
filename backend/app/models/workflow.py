@@ -151,7 +151,7 @@ class WorkflowExecution(Base):
     entity_type = Column(String, nullable=False, index=True)
     entity_id = Column(UUID(as_uuid=True), nullable=False, index=True)
     current_state_id = Column(UUID(as_uuid=True), ForeignKey("workflow_states.id", ondelete="SET NULL"), nullable=True)
-    status = Column(String, default="ACTIVE", nullable=False) # ACTIVE, COMPLETED, FAILED
+    status = Column(String, default="ACTIVE", nullable=False, index=True) # ACTIVE, COMPLETED, FAILED
     started_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), nullable=False)
     completed_at = Column(DateTime, nullable=True)
     # Phase 30: executions retain the workflow version they were started against

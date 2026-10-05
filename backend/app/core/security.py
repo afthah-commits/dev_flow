@@ -28,3 +28,14 @@ def create_access_token(subject: Union[str, Any], expires_delta: Optional[timede
     to_encode = {"exp": expire, "sub": str(subject)}
     encoded_jwt = jwt.encode(to_encode, settings.SECRET_KEY, algorithm=settings.JWT_ALGORITHM)
     return encoded_jwt
+
+def decode_access_token(token: str) -> dict:
+    """Decode and validate a JWT access token (Phase 31 fix).
+
+    The WebSocket endpoints (ws.py, realtime.py) have always called this
+    helper, but it did not exist — every realtime connection failed with an
+    ImportError that was swallowed by their broad except clause and surfaced
+    as close code 1008. Returns the decoded claims dict; raises
+    jose.JWTError for invalid or expired tokens.
+    """
+    return jwt.decode(token, settings.SECRET_KEY, algorithms=[settings.JWT_ALGORITHM])

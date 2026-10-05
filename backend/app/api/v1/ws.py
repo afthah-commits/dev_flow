@@ -2,10 +2,13 @@ from fastapi import APIRouter, WebSocket, WebSocketDisconnect, Depends, Query
 from sqlalchemy.orm import Session
 from uuid import UUID
 from typing import Optional
+import logging
 
 from app.api import deps
 from app.websockets.manager import manager
 from app.models.organization import OrganizationMember
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
@@ -15,11 +18,11 @@ router = APIRouter()
 async def websocket_endpoint(
     websocket: WebSocket,
     token: str = Query(...),
-    org_id: UUID = Query(...)
+    org_id: UUID = Query(...),
+    db: Session = Depends(deps.get_db),
 ):
-    # In a real app we would properly decode the JWT here
-    # For now, we mock the auth or use a simplistic dependency
-    db = next(deps.get_db())
+    # Phase 31: use the injected session (dependency overrides + guaranteed
+    # close) instead of a hand-rolled session that was never closed.
     try:
         from app.core.security import decode_access_token
         payload = decode_access_token(token)
@@ -54,5 +57,9 @@ async def websocket_endpoint(
                 "user_id": str(user_id),
                 "status": "OFFLINE"
             })
+    except WebSocketDisconnect:
+        raise
     except Exception as e:
+        # Log the exception TYPE only — never the message or token.
+        logger.warning("WS connection rejected: %s", type(e).__name__)
         await websocket.close(code=1008)

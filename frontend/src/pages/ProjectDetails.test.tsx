@@ -39,9 +39,11 @@ describe('ProjectDetails & Tasks', () => {
     )
 
     expect(await screen.findByText('Test Proj')).toBeInTheDocument()
-    expect(screen.getByText('Task 1')).toBeInTheDocument()
-    expect(screen.getByText('Task 2')).toBeInTheDocument()
-    expect(screen.getByText('Bug')).toBeInTheDocument()
+    // The kanban lives under the Tasks tab (Overview is the default tab).
+    fireEvent.click(screen.getByText('Tasks'))
+    expect(await screen.findByText('Task 1')).toBeInTheDocument()
+    expect(await screen.findByText('Task 2')).toBeInTheDocument()
+    expect(await screen.findByText('Bug')).toBeInTheDocument()
   })
 
   it('switches to list view', async () => {
@@ -54,12 +56,14 @@ describe('ProjectDetails & Tasks', () => {
     )
     
     await screen.findByText('Test Proj')
-    
-    const listBtn = screen.getByText('List View')
+
+    // Open the Tasks tab where the view switcher lives.
+    fireEvent.click(screen.getByText('Tasks'))
+    const listBtn = await screen.findByText('List View')
     fireEvent.click(listBtn)
     
-    expect(screen.getByText('Title')).toBeInTheDocument()
-    expect(screen.getByText('Task 1')).toBeInTheDocument()
+    expect(await screen.findByText('Title')).toBeInTheDocument()
+    expect(await screen.findByText('Task 1')).toBeInTheDocument()
   })
 
   it('opens task form', async () => {

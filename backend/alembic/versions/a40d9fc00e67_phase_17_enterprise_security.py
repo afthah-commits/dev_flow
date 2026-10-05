@@ -308,14 +308,20 @@ def downgrade() -> None:
         batch_op.drop_index(batch_op.f('ix_user_sessions_id'))
 
     op.drop_table('user_sessions')
+    # The later job-platform migration (1c483d67289a) drops ix_jobs_name and
+    # ix_jobs_next_run_at in its upgrade and its downgrade() is a no-op, so a
+    # full-chain downgrade reaches here with those indexes already gone.
+    # Guard the drops by actual existence so the chain downgrades cleanly.
+    _insp = sa.inspect(op.get_bind())
+    _job_indexes = ({ix['name'] for ix in _insp.get_indexes('jobs')}
+                    if _insp.has_table('jobs') else set())
     with op.batch_alter_table('jobs', schema=None) as batch_op:
-        batch_op.drop_index(batch_op.f('ix_jobs_status'))
-        batch_op.drop_index(batch_op.f('ix_jobs_next_run_at'))
-        batch_op.drop_index(batch_op.f('ix_jobs_name'))
-        batch_op.drop_index(batch_op.f('ix_jobs_idempotency_key'))
-        batch_op.drop_index(batch_op.f('ix_jobs_id'))
-
-    op.drop_table('jobs')
+        for _ix in ('ix_jobs_status', 'ix_jobs_next_run_at', 'ix_jobs_name',
+                    'ix_jobs_idempotency_key', 'ix_jobs_id'):
+            if _ix in _job_indexes:
+                batch_op.drop_index(batch_op.f(_ix))
+    if _insp.has_table('jobs'):
+        op.drop_table('jobs')
     with op.batch_alter_table('job_executions', schema=None) as batch_op:
         batch_op.drop_index(batch_op.f('ix_job_executions_job_id'))
         batch_op.drop_index(batch_op.f('ix_job_executions_id'))

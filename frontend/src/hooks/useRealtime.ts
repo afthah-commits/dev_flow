@@ -123,7 +123,16 @@ export function useRealtimeConnection(orgId?: string) {
 }
 
 export function useRealtimeEvent(event: string, callback: (payload: any) => void) {
+  // Phase 31: keep the latest callback in a ref so the subscription is created
+  // once per event type. Previously the effect deps included `callback`, so
+  // inline/memoized-but-changing callbacks churned the listener set on every
+  // render (duplicate subscribe/unsubscribe cycles).
+  const callbackRef = useRef(callback);
   useEffect(() => {
-    return realtimeService.subscribe(event, callback);
-  }, [event, callback]);
+    callbackRef.current = callback;
+  }, [callback]);
+
+  useEffect(() => {
+    return realtimeService.subscribe(event, (payload) => callbackRef.current(payload));
+  }, [event]);
 }

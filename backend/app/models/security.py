@@ -46,7 +46,7 @@ class LoginEvent(Base):
     id = Column(Uuid, primary_key=True, default=uuid.uuid4, index=True)
     user_id = Column(Uuid, ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True)
     email_attempted = Column(String, nullable=True)
-    organization_id = Column(Uuid, ForeignKey("organizations.id", ondelete="SET NULL"), nullable=True)
+    organization_id = Column(Uuid, ForeignKey("organizations.id", ondelete="SET NULL"), nullable=True, index=True)
     success = Column(Boolean, default=False)
     ip_address = Column(String, nullable=True)
     user_agent = Column(String, nullable=True)

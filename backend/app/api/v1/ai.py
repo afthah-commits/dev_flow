@@ -17,6 +17,11 @@ from app.schemas.ai import (
 from app.schemas.workflow import AIWorkflowSuggestion
 from app.services.ai.service import get_ai_provider, SYSTEM_PROMPT
 from app.services.ai.context import build_project_context
+from app.core.rate_limit import rate_limit
+
+# AI endpoints are computationally expensive; cap per-IP request volume.
+# Thresholds are generous so legitimate local development is never blocked.
+AI_RATE_LIMIT = (100, 60)
 
 router = APIRouter()
 
@@ -88,7 +93,8 @@ async def send_message(
     db: Session = Depends(deps.get_db),
     current_user: User = Depends(deps.get_current_user),
     conversation_id: UUID,
-    request: AIChatRequest
+    request: AIChatRequest,
+    _rl: None = Depends(rate_limit(*AI_RATE_LIMIT))
 ) -> Any:
     conv = _get_conversation(db, conversation_id, current_user.id)
     
@@ -178,7 +184,7 @@ async def generate_release_notes(
     release_id: UUID,
     db: Session = Depends(deps.get_db),
     current_user: User = Depends(deps.get_current_user),
-    org_id: UUID = Depends(deps.get_current_organization_id),
+    org_id: UUID = Depends(deps.require_current_organization_id),
 ) -> Any:
     """Generate AI-drafted release notes. Output is advisory only — user must review."""
     deps.require_organization_member(db, current_user.id, org_id)
@@ -227,7 +233,7 @@ async def summarize_discussion(
     discussion_id: UUID,
     db: Session = Depends(deps.get_db),
     current_user: User = Depends(deps.get_current_user),
-    org_id: UUID = Depends(deps.get_current_organization_id),
+    org_id: UUID = Depends(deps.require_current_organization_id),
 ) -> Any:
     deps.require_organization_member(db, current_user.id, org_id)
     from app.models.collaboration import Discussion, Comment
@@ -247,7 +253,7 @@ async def summarize_activity(
     project_id: UUID,
     db: Session = Depends(deps.get_db),
     current_user: User = Depends(deps.get_current_user),
-    org_id: UUID = Depends(deps.get_current_organization_id),
+    org_id: UUID = Depends(deps.require_current_organization_id),
 ) -> Any:
     deps.require_organization_member(db, current_user.id, org_id)
     prompt = "Summarize recent activity in the project."
@@ -259,7 +265,8 @@ async def summarize_activity(
 @router.post("/automations/generate")
 async def generate_automation(
     request: dict,
-    current_user: User = Depends(deps.get_current_user)
+    current_user: User = Depends(deps.get_current_user),
+    _rl: None = Depends(rate_limit(*AI_RATE_LIMIT))
 ) -> Any:
     prompt = request.get("prompt")
     # Mock generation
@@ -298,7 +305,7 @@ async def generate_project_summary(
     project_id: UUID,
     db: Session = Depends(deps.get_db),
     current_user: User = Depends(deps.get_current_user),
-    org_id: UUID = Depends(deps.get_current_organization_id)
+    org_id: UUID = Depends(deps.require_current_organization_id)
 ):
     context_data = await get_comprehensive_project_context(db, project_id, current_user.id, org_id)
     provider = get_ai_provider()
@@ -328,7 +335,7 @@ async def generate_project_risks(
     project_id: UUID,
     db: Session = Depends(deps.get_db),
     current_user: User = Depends(deps.get_current_user),
-    org_id: UUID = Depends(deps.get_current_organization_id)
+    org_id: UUID = Depends(deps.require_current_organization_id)
 ):
     context_data = await get_comprehensive_project_context(db, project_id, current_user.id, org_id)
     provider = get_ai_provider()
@@ -366,7 +373,7 @@ async def generate_task_prioritization(
     project_id: UUID,
     db: Session = Depends(deps.get_db),
     current_user: User = Depends(deps.get_current_user),
-    org_id: UUID = Depends(deps.get_current_organization_id)
+    org_id: UUID = Depends(deps.require_current_organization_id)
 ):
     context_data = await get_comprehensive_project_context(db, project_id, current_user.id, org_id)
     provider = get_ai_provider()
@@ -402,7 +409,7 @@ async def generate_sprint_plan(
     project_id: UUID,
     db: Session = Depends(deps.get_db),
     current_user: User = Depends(deps.get_current_user),
-    org_id: UUID = Depends(deps.get_current_organization_id)
+    org_id: UUID = Depends(deps.require_current_organization_id)
 ):
     context_data = await get_comprehensive_project_context(db, project_id, current_user.id, org_id)
     provider = get_ai_provider()
@@ -431,7 +438,7 @@ async def generate_github_summary(
     project_id: UUID,
     db: Session = Depends(deps.get_db),
     current_user: User = Depends(deps.get_current_user),
-    org_id: UUID = Depends(deps.get_current_organization_id)
+    org_id: UUID = Depends(deps.require_current_organization_id)
 ):
     context_data = await get_comprehensive_project_context(db, project_id, current_user.id, org_id)
     provider = get_ai_provider()
@@ -450,7 +457,7 @@ async def generate_release_analysis(
     release_id: UUID,
     db: Session = Depends(deps.get_db),
     current_user: User = Depends(deps.get_current_user),
-    org_id: UUID = Depends(deps.get_current_organization_id)
+    org_id: UUID = Depends(deps.require_current_organization_id)
 ):
     provider = get_ai_provider()
     prompt = f"Analyze release readiness for release {release_id}."
@@ -477,7 +484,7 @@ async def generate_deployment_analysis(
     project_id: UUID,
     db: Session = Depends(deps.get_db),
     current_user: User = Depends(deps.get_current_user),
-    org_id: UUID = Depends(deps.get_current_organization_id)
+    org_id: UUID = Depends(deps.require_current_organization_id)
 ):
     context_data = await get_comprehensive_project_context(db, project_id, current_user.id, org_id)
     provider = get_ai_provider()
@@ -506,7 +513,7 @@ async def generate_daily_brief(
     project_id: UUID,
     db: Session = Depends(deps.get_db),
     current_user: User = Depends(deps.get_current_user),
-    org_id: UUID = Depends(deps.get_current_organization_id)
+    org_id: UUID = Depends(deps.require_current_organization_id)
 ):
     context_data = await get_comprehensive_project_context(db, project_id, current_user.id, org_id)
     provider = get_ai_provider()
@@ -524,7 +531,7 @@ async def generate_daily_brief(
 def get_ai_usage(
     db: Session = Depends(deps.get_db),
     current_user: User = Depends(deps.get_current_user),
-    org_id: UUID = Depends(deps.get_current_organization_id)
+    org_id: UUID = Depends(deps.require_current_organization_id)
 ):
     usages = db.query(AIUsage).filter(AIUsage.organization_id == org_id).all()
     return usages
@@ -546,7 +553,7 @@ def get_project_forecast(
     project_id: UUID,
     db: Session = Depends(deps.get_db),
     current_user: User = Depends(deps.get_current_user),
-    org_id: UUID = Depends(deps.get_current_organization_id)
+    org_id: UUID = Depends(deps.require_current_organization_id)
 ):
     # Authorization checks are done implicitly via org_id filters in the service, but let's verify project exists for org
     project = db.query(Project).filter(Project.id == project_id, Project.organization_id == org_id).first()
@@ -571,7 +578,7 @@ def get_smart_sprint_plan(
     project_id: UUID,
     db: Session = Depends(deps.get_db),
     current_user: User = Depends(deps.get_current_user),
-    org_id: UUID = Depends(deps.get_current_organization_id)
+    org_id: UUID = Depends(deps.require_current_organization_id)
 ):
     project = db.query(Project).filter(Project.id == project_id, Project.organization_id == org_id).first()
     if not project:
@@ -595,7 +602,7 @@ async def get_project_health_report(
     project_id: UUID,
     db: Session = Depends(deps.get_db),
     current_user: User = Depends(deps.get_current_user),
-    org_id: UUID = Depends(deps.get_current_organization_id)
+    org_id: UUID = Depends(deps.require_current_organization_id)
 ):
     context_data = await get_comprehensive_project_context(db, project_id, current_user.id, org_id)
     provider = get_ai_provider()
@@ -623,7 +630,7 @@ async def get_project_health_report(
 def get_daily_brief(
     db: Session = Depends(deps.get_db),
     current_user: User = Depends(deps.get_current_user),
-    org_id: UUID = Depends(deps.get_current_organization_id)
+    org_id: UUID = Depends(deps.require_current_organization_id)
 ):
     brief_data = get_org_daily_brief(db, org_id)
     return OrgDailyBrief(**brief_data)
@@ -633,7 +640,7 @@ def get_task_priorities(
     project_id: UUID,
     db: Session = Depends(deps.get_db),
     current_user: User = Depends(deps.get_current_user),
-    org_id: UUID = Depends(deps.get_current_organization_id)
+    org_id: UUID = Depends(deps.require_current_organization_id)
 ):
     project = db.query(Project).filter(Project.id == project_id, Project.organization_id == org_id).first()
     if not project:
@@ -657,7 +664,7 @@ def get_project_risk_engine(
     project_id: UUID,
     db: Session = Depends(deps.get_db),
     current_user: User = Depends(deps.get_current_user),
-    org_id: UUID = Depends(deps.get_current_organization_id)
+    org_id: UUID = Depends(deps.require_current_organization_id)
 ):
     project = db.query(Project).filter(Project.id == project_id, Project.organization_id == org_id).first()
     if not project:
@@ -672,7 +679,7 @@ async def ask_knowledge(
     req: AIKnowledgeAsk,
     db: Session = Depends(deps.get_db),
     current_user: User = Depends(deps.get_current_user),
-    org_id: UUID = Depends(deps.get_current_organization_id)
+    org_id: UUID = Depends(deps.require_current_organization_id)
 ):
     # Verify RBAC etc.
     deps.require_organization_member(db, current_user.id, org_id)
@@ -706,7 +713,7 @@ async def summarize_knowledge_document(
     document_id: UUID,
     db: Session = Depends(deps.get_db),
     current_user: User = Depends(deps.get_current_user),
-    org_id: UUID = Depends(deps.get_current_organization_id)
+    org_id: UUID = Depends(deps.require_current_organization_id)
 ):
     deps.require_organization_member(db, current_user.id, org_id)
     
@@ -746,7 +753,8 @@ async def generate_workflow(
     req: AIWorkflowGenerateRequest,
     db: Session = Depends(deps.get_db),
     current_user: User = Depends(deps.get_current_user),
-    org_id: UUID = Depends(deps.get_current_organization_id)
+    org_id: UUID = Depends(deps.require_current_organization_id),
+    _rl: None = Depends(rate_limit(*AI_RATE_LIMIT))
 ):
     """AI Workflow Design Assistant (Phase 30).
 

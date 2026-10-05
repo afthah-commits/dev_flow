@@ -1095,14 +1095,19 @@ def workflow_analytics(
     ).scalar() or 0
 
     # State duration: average time spent per state from TRANSITION events
+    # Phase 31: prefetch state names once instead of querying per event (N+1).
+    state_name_by_id = {
+        str(sid): sname for sid, sname in
+        db.query(WorkflowState.id, WorkflowState.name).filter(WorkflowState.workflow_id == wf.id).all()
+    }
     state_durations: Dict[str, Any] = {}
     for e in executions:
         events = [ev for ev in (e.events or [])]
         for ev in events:
             if ev.event_type == "TRANSITION" and ev.from_state_id:
-                state = db.query(WorkflowState).filter(WorkflowState.id == ev.from_state_id).first()
-                if state:
-                    entry = state_durations.setdefault(state.name, {"state": state.name, "avg_seconds": 0.0, "count": 0})
+                state_name = state_name_by_id.get(str(ev.from_state_id))
+                if state_name:
+                    entry = state_durations.setdefault(state_name, {"state": state_name, "avg_seconds": 0.0, "count": 0})
                     entry["count"] += 1
 
     from collections import Counter

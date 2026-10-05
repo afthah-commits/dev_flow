@@ -127,17 +127,20 @@ class JobScheduler:
                 metadata_={"job_type": job.job_type}
             ))
             
-            # Realtime event
+            # Realtime event — must never flip a successful job to failed
             try:
                 loop = asyncio.get_event_loop()
             except RuntimeError:
                 loop = asyncio.new_event_loop()
                 asyncio.set_event_loop(loop)
-            loop.run_until_complete(manager.broadcast_to_org(job.organization_id, {
-                "type": "job.updated",
-                "entity": "job",
-                "entity_id": str(job.id)
-            }))
+            try:
+                loop.run_until_complete(manager.broadcast_to_org(job.organization_id, {
+                    "type": "job.updated",
+                    "entity": "job",
+                    "entity_id": str(job.id)
+                }))
+            except Exception as broadcast_err:
+                logger.warning("job.updated broadcast failed: %s", type(broadcast_err).__name__)
             
         except Exception as e:
             logger.error(f"Job {job.id} failed: {e}")
@@ -162,15 +165,29 @@ class JobScheduler:
                 entity_id=job.id,
                 metadata_={"job_type": job.job_type, "error": error_message}
             ))
-            from app.models.notification import Notification
-            db.add(Notification(
-                organization_id=job.organization_id,
-                type="JOB_FAILED",
-                title=f"Job {job.job_type} failed",
-                content=error_message,
-                entity_type="job",
-                entity_id=job.id
-            ))
+            # Phase 31 fix: this previously constructed Notification with
+            # nonexistent columns (organization_id=, content=) and no
+            # user_id, raising TypeError and crashing the scheduler loop on
+            # every permanent failure. Notify the org's OWNER/ADMIN members
+            # using the real schema (user_id, message).
+            try:
+                from app.models.notification import Notification
+                from app.models.organization import OrganizationMember, OrganizationRole
+                recipients = db.query(OrganizationMember).filter(
+                    OrganizationMember.organization_id == job.organization_id,
+                    OrganizationMember.role.in_([OrganizationRole.OWNER, OrganizationRole.ADMIN])
+                ).all()
+                for member in recipients:
+                    db.add(Notification(
+                        user_id=member.user_id,
+                        type="JOB_FAILED",
+                        title=f"Job {job.job_type} failed",
+                        message=error_message or "Job failed",
+                        entity_type="job",
+                        entity_id=job.id,
+                    ))
+            except Exception as notify_err:
+                logger.warning("job failure notification skipped: %s", type(notify_err).__name__)
         else:
             job.status = "RETRYING"
             delay = (2 ** job.attempts) * 10
@@ -190,11 +207,14 @@ class JobScheduler:
         except RuntimeError:
             loop = asyncio.new_event_loop()
             asyncio.set_event_loop(loop)
-        loop.run_until_complete(manager.broadcast_to_org(job.organization_id, {
-            "type": "job.updated",
-            "entity": "job",
-            "entity_id": str(job.id)
-        }))
+        try:
+            loop.run_until_complete(manager.broadcast_to_org(job.organization_id, {
+                "type": "job.updated",
+                "entity": "job",
+                "entity_id": str(job.id)
+            }))
+        except Exception as broadcast_err:
+            logger.warning("job.updated broadcast failed: %s", type(broadcast_err).__name__)
 
     def _fail_job(self, db: Session, job: Job, execution: JobExecution, error_message: str):
         job.status = "FAILED"

@@ -18,7 +18,7 @@ class TimeEntry(Base):
     sprint_id = Column(Uuid, ForeignKey("sprints.id", ondelete="SET NULL"), nullable=True, index=True)
     
     description = Column(Text, nullable=True)
-    started_at = Column(DateTime(timezone=True), nullable=False)
+    started_at = Column(DateTime(timezone=True), nullable=False, index=True)
     ended_at = Column(DateTime(timezone=True), nullable=False)
     duration_seconds = Column(Integer, nullable=False)
     billable = Column(Boolean, default=False, nullable=False, index=True)

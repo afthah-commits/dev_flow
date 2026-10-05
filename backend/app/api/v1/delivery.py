@@ -491,12 +491,27 @@ def get_delivery_metrics(project_id: Optional[UUID] = None, db: Session = Depend
     pipe_rate = (success_pipes / total_pipes * 100) if total_pipes else 0
 
     # Lead time: average time from first task completion to release
+    # Phase 31: batched into 2 queries instead of 2 queries per release (N+1).
     lead_times = []
-    for r in released:
-        rts = db.query(ReleaseTask).filter(ReleaseTask.release_id == r.id).all()
-        if rts:
-            task_ids = [rt.task_id for rt in rts]
-            tasks = db.query(Task).filter(Task.id.in_(task_ids), Task.status == TaskStatus.DONE).all()
+    if released:
+        released_ids = [r.id for r in released]
+        release_tasks = db.query(ReleaseTask.release_id, ReleaseTask.task_id)\
+            .filter(ReleaseTask.release_id.in_(released_ids)).all()
+        all_task_ids = {rt.task_id for rt in release_tasks}
+        done_tasks = {}
+        if all_task_ids:
+            done_tasks = {
+                t.id: t for t in db.query(Task)
+                .filter(Task.id.in_(all_task_ids), Task.status == TaskStatus.DONE).all()
+            }
+        tasks_by_release: dict = {}
+        for rt in release_tasks:
+            task = done_tasks.get(rt.task_id)
+            if task is not None:
+                tasks_by_release.setdefault(rt.release_id, []).append(task)
+
+        for r in released:
+            tasks = tasks_by_release.get(r.id, [])
             if tasks and r.released_at:
                 earliest = min(t.updated_at or t.created_at for t in tasks)
                 if earliest:

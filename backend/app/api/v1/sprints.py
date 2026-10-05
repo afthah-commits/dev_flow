@@ -156,6 +156,15 @@ def complete_sprint(
     
     # Handle incomplete tasks
     if move_incomplete_to:
+        # Phase 31: resolve the target sprint ONCE instead of once per task (N+1).
+        target_sprint = None
+        if move_incomplete_to != 'backlog':
+            try:
+                target_sprint_id = UUID(move_incomplete_to)
+                target_sprint = db.query(Sprint).filter(Sprint.id == target_sprint_id, Sprint.project_id == project_id).first()
+            except ValueError:
+                target_sprint = None
+
         incomplete_tasks = db.query(Task).filter(
             Task.sprint_id == sprint.id,
             Task.status.in_(["TODO", "IN_PROGRESS", "IN_REVIEW"])
@@ -164,14 +173,8 @@ def complete_sprint(
         for task in incomplete_tasks:
             if move_incomplete_to == 'backlog':
                 task.sprint_id = None
-            else:
-                try:
-                    target_sprint_id = UUID(move_incomplete_to)
-                    target_sprint = db.query(Sprint).filter(Sprint.id == target_sprint_id, Sprint.project_id == project_id).first()
-                    if target_sprint:
-                        task.sprint_id = target_sprint.id
-                except ValueError:
-                    pass
+            elif target_sprint:
+                task.sprint_id = target_sprint.id
     
     db.commit()
     db.refresh(sprint)

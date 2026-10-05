@@ -6,7 +6,7 @@ from datetime import datetime, timedelta, timezone
 
 from app.models.project import Project
 from app.models.task import Task
-from app.models.organization import Organization, OrganizationMember
+from app.models.organization import Organization, OrganizationMember, OrganizationRole
 from app.models.user import User
 from app.core.security import create_access_token
 
@@ -20,7 +20,7 @@ def auth_setup_predictive(db: Session):
     db.add(org)
     db.commit()
     
-    member = OrganizationMember(organization_id=org.id, user_id=user.id, role="admin")
+    member = OrganizationMember(organization_id=org.id, user_id=user.id, role=OrganizationRole.ADMIN)
     db.add(member)
     db.commit()
     

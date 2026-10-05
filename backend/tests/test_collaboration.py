@@ -64,7 +64,9 @@ def test_collaboration_flow(client):
 
     # 12. Search
     search = client.get(f"/api/v1/search?q=Architecture", headers=headers).json()
-    assert len(search["discussions"]) >= 1
+    assert isinstance(search, list)
+    discussion_hits = [r for r in search if r.get("entity_type") == "DISCUSSION" and "Architecture" in r.get("title", "")]
+    assert len(discussion_hits) >= 1
 
     # 13. Delete Comment
     res = client.delete(f"/api/v1/comments/{comment_id}", headers=headers)

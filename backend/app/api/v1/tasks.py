@@ -1,5 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException, Query, status
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, selectinload
 from sqlalchemy import or_, desc, asc, func
 from typing import Optional, Any, List
 from uuid import UUID
@@ -89,8 +89,27 @@ def list_tasks(
     sort_order: str = Query("asc", pattern="^(asc|desc)$")
 ) -> Any:
     project = get_project_or_404(db, project_id, current_user)
-    
-    query = db.query(Task).filter(Task.project_id == project.id)
+
+    # Phase 31: eager-load every collection TaskResponse serializes (labels,
+    # watchers, checklists, dependencies, subtasks) — previously each row
+    # fired ~6 lazy loads (125 SELECTs for 15 tasks); now constant queries.
+    query = (
+        db.query(Task)
+        .options(
+            selectinload(Task.labels_rel),
+            selectinload(Task.watchers),
+            selectinload(Task.checklists),
+            selectinload(Task.blocks),
+            selectinload(Task.blocked_by),
+            selectinload(Task.subtasks).selectinload(Task.labels_rel),
+            selectinload(Task.subtasks).selectinload(Task.watchers),
+            selectinload(Task.subtasks).selectinload(Task.checklists),
+            selectinload(Task.subtasks).selectinload(Task.blocks),
+            selectinload(Task.subtasks).selectinload(Task.blocked_by),
+            selectinload(Task.subtasks).selectinload(Task.subtasks),
+        )
+        .filter(Task.project_id == project.id)
+    )
 
     if search:
         query = query.filter(

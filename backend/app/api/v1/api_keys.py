@@ -13,13 +13,23 @@ from datetime import datetime, timezone, timedelta
 
 router = APIRouter()
 
+def _require_org_access(db: Session, current_user: User, organization_id: str) -> str:
+    """Phase 31: validate membership before touching org-scoped API keys."""
+    try:
+        org_uuid = uuid.UUID(str(organization_id))
+    except (ValueError, TypeError, AttributeError):
+        raise HTTPException(status_code=404, detail="API Key not found")
+    deps.require_organization_member(db, current_user.id, org_uuid)
+    return str(org_uuid)
+
 @router.get("", response_model=List[APIKeyResponse])
 def list_api_keys(
     organization_id: str,
     db: Session = Depends(deps.get_db),
     current_user: User = Depends(deps.get_current_user)
 ) -> Any:
-    return db.query(APIKey).filter(APIKey.organization_id == organization_id).all()
+    org_id = _require_org_access(db, current_user, organization_id)
+    return db.query(APIKey).filter(APIKey.organization_id == org_id).all()
 
 @router.post("")
 def create_api_key(
@@ -28,6 +38,7 @@ def create_api_key(
     db: Session = Depends(deps.get_db),
     current_user: User = Depends(deps.get_current_user)
 ) -> Any:
+    org_id = _require_org_access(db, current_user, organization_id)
     raw_key = secrets.token_urlsafe(32)
     key_prefix = raw_key[:8]
     key_hash = hashlib.sha256(raw_key.encode('utf-8')).hexdigest()
@@ -37,7 +48,7 @@ def create_api_key(
         expires_at = datetime.now(timezone.utc) + timedelta(days=key_in.expires_in_days)
         
     api_key = APIKey(
-        organization_id=organization_id,
+        organization_id=org_id,
         name=key_in.name,
         key_prefix=key_prefix,
         key_hash=key_hash,
@@ -69,6 +80,7 @@ def revoke_api_key(
     api_key = db.query(APIKey).filter(APIKey.id == key_id).first()
     if not api_key:
         raise HTTPException(status_code=404)
+    _require_org_access(db, current_user, api_key.organization_id)
     api_key.revoked_at = datetime.now(timezone.utc)
     db.commit()
     return {"ok": True}

@@ -20,11 +20,11 @@ describe('Sprints component', () => {
     ]);
     
     render(<Sprints project={mockProject as any} />);
-    expect(screen.getByText(/loading sprints/i)).toBeInDocument();
+    expect(screen.getByText(/loading sprints/i)).toBeInTheDocument();
     
     await waitFor(() => {
-      expect(screen.getByText('Sprint 1')).toBeInDocument();
-      expect(screen.getByText('ACTIVE')).toBeInDocument();
+      expect(screen.getByText('Sprint 1')).toBeInTheDocument();
+      expect(screen.getByText('ACTIVE')).toBeInTheDocument();
     });
   });
   
@@ -34,7 +34,7 @@ describe('Sprints component', () => {
     render(<Sprints project={mockProject as any} />);
     
     await waitFor(() => {
-      expect(screen.queryByText(/loading sprints/i)).not.toBeInDocument();
+      expect(screen.queryByText(/loading sprints/i)).not.toBeInTheDocument();
     });
   });
 });

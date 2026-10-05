@@ -99,40 +99,61 @@ async def execute_action(db: Session, action: Dict[str, Any], execution: Automat
         
         # MOCK IMPLEMENTATION OF ACTIONS - reuse existing logic where applicable
         if action_type == "CREATE_TASK":
+            # Phase 31 fix: previously passed organization_id= (tasks has no
+            # such column) and omitted the NOT NULL creator_id — every
+            # CREATE_TASK action failed with TypeError.
             title = action.get("title", "Automated Task")
-            # In a real impl, we would use Task CRUD, here we just insert directly or call crud.task
+            project_id = action.get("project_id") or event_payload.get("project_id")
+            if not project_id:
+                raise ValueError("CREATE_TASK requires project_id in the action config or event payload")
+            creator_id = (action.get("creator_id") or event_payload.get("actor_user_id")
+                          or event_payload.get("actor_id") or event_payload.get("user_id"))
+            if not creator_id:
+                raise ValueError("CREATE_TASK requires an actor (creator) in the event payload")
             new_task = Task(
-                organization_id=org_id,
-                project_id=action.get("project_id") or event_payload.get("project_id"),
+                project_id=uuid.UUID(str(project_id)),
+                creator_id=uuid.UUID(str(creator_id)),
                 title=title,
                 status=action.get("status", "TODO"),
                 priority=action.get("priority", "MEDIUM")
             )
             db.add(new_task)
             db.flush()
-            action_exec.output_data = {"task_id": new_task.id}
+            action_exec.output_data = {"task_id": str(new_task.id)}
             
         elif action_type == "UPDATE_TASK":
+            # Phase 31 fix: tasks has no organization_id column — scope the
+            # lookup through the task's project to keep tenant isolation.
             task_id = action.get("task_id") or event_payload.get("task_id")
             if task_id:
-                task = db.query(Task).filter(Task.id == task_id, Task.organization_id == org_id).first()
+                task = (db.query(Task)
+                        .join(Project, Task.project_id == Project.id)
+                        .filter(Task.id == uuid.UUID(str(task_id)),
+                                Project.organization_id == uuid.UUID(str(org_id)))
+                        .first())
                 if task:
                     if "status" in action: task.status = action["status"]
                     if "priority" in action: task.priority = action["priority"]
-                    action_exec.output_data = {"task_id": task.id, "updated": True}
+                    action_exec.output_data = {"task_id": str(task.id), "updated": True}
                     
         elif action_type == "CREATE_COMMENT":
-            entity_id = action.get("entity_id") or event_payload.get("task_id") or event_payload.get("entity_id")
-            if entity_id:
-                comment = Comment(
-                    organization_id=org_id,
-                    entity_type=action.get("entity_type", "TASK"),
-                    entity_id=entity_id,
-                    content=action.get("content", "Automated comment")
-                )
-                db.add(comment)
-                db.flush()
-                action_exec.output_data = {"comment_id": str(comment.id)}
+                entity_id = action.get("entity_id") or event_payload.get("task_id") or event_payload.get("entity_id")
+                author_id = action.get("author_id") or event_payload.get("actor_user_id") or event_payload.get("actor_id")
+                if not author_id:
+                    from app.models.automation import Automation
+                    automation = db.query(Automation).filter(Automation.id == execution.automation_id).first()
+                    author_id = automation.created_by if automation else None
+                if entity_id and author_id:
+                    comment = Comment(
+                        organization_id=uuid.UUID(str(org_id)),
+                        author_id=uuid.UUID(str(author_id)),
+                        entity_type=action.get("entity_type", "TASK"),
+                        entity_id=uuid.UUID(str(entity_id)),
+                        content=action.get("content", "Automated comment")
+                    )
+                    db.add(comment)
+                    db.flush()
+                    action_exec.output_data = {"comment_id": str(comment.id)}
         
         elif action_type == "CREATE_AUDIT_EVENT":
             audit = AuditEvent(
@@ -174,7 +195,14 @@ async def execute_action(db: Session, action: Dict[str, Any], execution: Automat
         
     except Exception as e:
         action_exec.status = "FAILED"
-        action_exec.error_message = str(e)
+        action_exec.output_data = {"error": str(e)}
+        # Phase 31: never store raw database errors (they can embed SQL and
+        # parameter values); keep exception type + bounded message otherwise.
+        from sqlalchemy.exc import SQLAlchemyError
+        if isinstance(e, SQLAlchemyError):
+            action_exec.error_message = f"{type(e).__name__}: database error"
+        else:
+            action_exec.error_message = f"{type(e).__name__}: {str(e)[:300]}"
         
     action_exec.completed_at = datetime.now(timezone.utc)
     db.commit()

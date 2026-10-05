@@ -60,8 +60,7 @@ def broadcast_workflow_event(org_id, event_type: str, payload: Dict[str, Any]) -
         "payload": payload,
     }
     try:
-        manager_module = __import__("app.websockets.manager", fromlist=["manager"])
-        manager = manager_module.manager
+        from app.websockets.manager import manager
         try:
             loop = asyncio.get_event_loop()
             if loop.is_running():

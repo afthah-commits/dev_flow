@@ -8,11 +8,17 @@ from app.models.user import User
 from app.schemas.user import UserCreate, UserResponse, UserLogin
 from app.schemas.token import Token
 from datetime import datetime
+from app.core.rate_limit import rate_limit
 
 router = APIRouter()
 
+# Brute-force protection. Generous thresholds keep local development and the
+# automated test suite unblocked while bounding request volume per IP.
+AUTH_RATE_LIMIT = (100, 60)  # requests per 60s window per IP+path
+
 @router.post("/register", response_model=UserResponse, status_code=status.HTTP_201_CREATED)
-def register(user_in: UserCreate, db: Session = Depends(deps.get_db)):
+def register(user_in: UserCreate, db: Session = Depends(deps.get_db),
+              _rl: None = Depends(rate_limit(*AUTH_RATE_LIMIT))):
     user = db.query(User).filter(User.email == user_in.email).first()
     if user:
         raise HTTPException(
@@ -30,7 +36,8 @@ def register(user_in: UserCreate, db: Session = Depends(deps.get_db)):
     return user_obj
 
 @router.post("/login", response_model=Token)
-def login(user_in: UserLogin, db: Session = Depends(deps.get_db)):
+def login(user_in: UserLogin, db: Session = Depends(deps.get_db),
+          _rl: None = Depends(rate_limit(*AUTH_RATE_LIMIT))):
     user = db.query(User).filter(User.email == user_in.email).first()
     
     from app.services.audit_service import record_event

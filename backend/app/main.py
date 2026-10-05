@@ -12,7 +12,7 @@ from app.api.v1 import collaboration, search, ws, knowledge, clients, client_por
 from app.api.v1 import environments, deployments, deployment_incidents, infrastructure
 
 from app.api.v1 import reports, dashboards, governance, privacy
-from app.api.v1 import automations, integrations, webhooks, api_keys
+from app.api.v1 import automations, integrations, webhooks, api_keys, admin, security, roles
 from app.api.public_v1 import public
 
 
@@ -87,6 +87,9 @@ app.include_router(automations.router, prefix=f"{settings.API_V1_STR}/automation
 app.include_router(integrations.router, prefix=f"{settings.API_V1_STR}/integrations", tags=["integrations"])
 app.include_router(webhooks.router, prefix=f"{settings.API_V1_STR}/webhooks", tags=["webhooks"])
 app.include_router(api_keys.router, prefix=f"{settings.API_V1_STR}/api_keys", tags=["api_keys"])
+app.include_router(admin.router, prefix=f"{settings.API_V1_STR}/admin", tags=["admin"])
+app.include_router(security.router, prefix=f"{settings.API_V1_STR}/security", tags=["security"])
+app.include_router(roles.router, prefix=f"{settings.API_V1_STR}/roles", tags=["roles"])
 app.include_router(public.router, prefix=f"/api/public/v1", tags=["public"])
 app.include_router(jobs.router, prefix=f"{settings.API_V1_STR}/jobs", tags=["jobs"])
 app.include_router(realtime.router, prefix=f"{settings.API_V1_STR}/realtime", tags=["realtime"])

@@ -32,7 +32,7 @@ class Notification(Base):
     entity_id = Column(Uuid, nullable=True, index=True)
     title = Column(String, nullable=False)
     message = Column(Text, nullable=False)
-    read = Column(Boolean, default=False, nullable=False)
+    read = Column(Boolean, default=False, nullable=False, index=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now(), index=True)
     read_at = Column(DateTime(timezone=True), nullable=True)
 

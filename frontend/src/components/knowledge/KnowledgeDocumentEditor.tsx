@@ -3,6 +3,16 @@ import { Save, Clock, FileText, Trash, ChevronDown } from 'lucide-react';
 import { knowledgeApi } from '../../lib/knowledgeApi';
 import { KnowledgeDocument, KnowledgeDocumentVersion } from '../../types';
 
+/** Escape HTML so user-authored content can never inject markup (XSS). */
+function escapeHtml(value: string): string {
+  return value
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
 interface Props {
   docId: string;
   onUpdate: () => void;
@@ -155,14 +165,16 @@ export default function KnowledgeDocumentEditor({ docId, onUpdate, onDelete }: P
         
         {/* Simple markdown preview (right) */}
         <div className="flex-1 p-6 overflow-y-auto bg-gray-950 prose prose-invert prose-indigo max-w-none">
-          <div dangerouslySetInnerHTML={{ 
-            // In a real app we'd use marked or similar, here we just do a very basic transform for demo
-            __html: content
+          <div dangerouslySetInnerHTML={{
+            // Phase 31: escape ALL raw HTML before applying the naive markdown
+            // transforms — previously user-authored `<img onerror=...>` etc.
+            // was injected verbatim (stored XSS across org members / clients).
+            __html: escapeHtml(content)
               .replace(/^# (.*$)/gim, '<h1>$1</h1>')
               .replace(/^## (.*$)/gim, '<h2>$1</h2>')
               .replace(/^### (.*$)/gim, '<h3>$1</h3>')
               .replace(/\*\*(.*)\*\*/gim, '<strong>$1</strong>')
-              .replace(/\n$/gim, '<br />') 
+              .replace(/\n$/gim, '<br />')
           }} />
         </div>
       </div>

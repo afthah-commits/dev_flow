@@ -1,5 +1,6 @@
 import uuid
 from typing import Any, List
+from uuid import UUID
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from app.api import deps
@@ -10,17 +11,39 @@ from app.services.automation_engine import handle_event
 
 router = APIRouter()
 
+def _require_org_access(db: Session, current_user: User, organization_id: str) -> UUID:
+    """Validate the caller is a member of the target organization.
+
+    Phase 31: previously these endpoints trusted the organization_id query
+    parameter (or the bare automation id) with no membership check, allowing
+    cross-tenant reads and writes.
+    """
+    try:
+        org_uuid = UUID(str(organization_id))
+    except (ValueError, TypeError, AttributeError):
+        raise HTTPException(status_code=404, detail="Automation not found")
+    deps.require_organization_member(db, current_user.id, org_uuid)
+    return org_uuid
+
+def _require_automation_access(db: Session, current_user: User, automation_id: str) -> Automation:
+    automation = db.query(Automation).filter(Automation.id == automation_id).first()
+    if not automation:
+        raise HTTPException(status_code=404, detail="Automation not found")
+    _require_org_access(db, current_user, automation.organization_id)
+    return automation
+
 @router.get("", response_model=List[AutomationResponse])
 def list_automations(
     db: Session = Depends(deps.get_db),
     current_user: User = Depends(deps.get_current_user),
     organization_id: str = None
 ) -> Any:
-    # In real app verify RBAC. Assuming viewer logic holds for org_id.
     if not organization_id:
         raise HTTPException(status_code=400, detail="organization_id is required")
-        
-    automations = db.query(Automation).filter(Automation.organization_id == organization_id).all()
+    org_uuid = _require_org_access(db, current_user, organization_id)
+
+    # Automation.organization_id is a String column; compare against its text form.
+    automations = db.query(Automation).filter(Automation.organization_id == str(org_uuid)).all()
     return automations
 
 @router.post("", response_model=AutomationResponse)
@@ -31,8 +54,9 @@ def create_automation(
     organization_id: str,
     current_user: User = Depends(deps.get_current_user)
 ) -> Any:
+    org_uuid = _require_org_access(db, current_user, organization_id)
     automation = Automation(
-        organization_id=organization_id,
+        organization_id=str(org_uuid),
         created_by=str(current_user.id),
         name=automation_in.name,
         description=automation_in.description,
@@ -54,10 +78,7 @@ def get_automation(
     db: Session = Depends(deps.get_db),
     current_user: User = Depends(deps.get_current_user)
 ) -> Any:
-    automation = db.query(Automation).filter(Automation.id == automation_id).first()
-    if not automation:
-        raise HTTPException(status_code=404, detail="Automation not found")
-    return automation
+    return _require_automation_access(db, current_user, automation_id)
 
 @router.patch("/{automation_id}", response_model=AutomationResponse)
 def update_automation(
@@ -66,10 +87,8 @@ def update_automation(
     db: Session = Depends(deps.get_db),
     current_user: User = Depends(deps.get_current_user)
 ) -> Any:
-    automation = db.query(Automation).filter(Automation.id == automation_id).first()
-    if not automation:
-        raise HTTPException(status_code=404, detail="Automation not found")
-    
+    automation = _require_automation_access(db, current_user, automation_id)
+
     update_data = automation_in.dict(exclude_unset=True)
     for field, value in update_data.items():
         setattr(automation, field, value)
@@ -84,9 +103,7 @@ def delete_automation(
     db: Session = Depends(deps.get_db),
     current_user: User = Depends(deps.get_current_user)
 ) -> Any:
-    automation = db.query(Automation).filter(Automation.id == automation_id).first()
-    if not automation:
-        raise HTTPException(status_code=404, detail="Automation not found")
+    automation = _require_automation_access(db, current_user, automation_id)
     db.delete(automation)
     db.commit()
     return {"ok": True}
@@ -97,7 +114,8 @@ def get_executions(
     db: Session = Depends(deps.get_db),
     current_user: User = Depends(deps.get_current_user)
 ) -> Any:
-    executions = db.query(AutomationExecution).filter(AutomationExecution.automation_id == automation_id).all()
+    automation = _require_automation_access(db, current_user, automation_id)
+    executions = db.query(AutomationExecution).filter(AutomationExecution.automation_id == automation.id).all()
     # Eager load actions if needed, for simplicity we just return base for now
     return executions
 
@@ -108,9 +126,7 @@ async def test_automation(
     db: Session = Depends(deps.get_db),
     current_user: User = Depends(deps.get_current_user)
 ) -> Any:
-    automation = db.query(Automation).filter(Automation.id == automation_id).first()
-    if not automation:
-        raise HTTPException(status_code=404, detail="Automation not found")
+    automation = _require_automation_access(db, current_user, automation_id)
         
     from app.services.automation_engine import evaluate_condition_group
     passed = evaluate_condition_group(automation.conditions, payload)

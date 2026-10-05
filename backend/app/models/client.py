@@ -112,7 +112,7 @@ class ClientRequest(Base):
     
     title = Column(String, nullable=False)
     description = Column(Text, nullable=True)
-    status = Column(Enum(ClientRequestStatus, native_enum=False), default=ClientRequestStatus.OPEN, nullable=False)
+    status = Column(Enum(ClientRequestStatus, native_enum=False), default=ClientRequestStatus.OPEN, nullable=False, index=True)
     priority = Column(Enum(ClientRequestPriority, native_enum=False), default=ClientRequestPriority.NORMAL, nullable=False)
     
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), nullable=False)

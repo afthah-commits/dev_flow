@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
-from typing import List
+from typing import List, Optional
 from uuid import UUID
 from pydantic import BaseModel
 from app.api.deps import get_db, get_current_user, require_organization_member
@@ -12,13 +12,13 @@ router = APIRouter()
 
 class RoleCreate(BaseModel):
     name: str
-    description: str = None
+    description: Optional[str] = None
     permissions: List[str]
 
 class RoleResponse(BaseModel):
     id: UUID
     name: str
-    description: str = None
+    description: Optional[str] = None
     is_system_role: bool
     permissions: List[str]
 

@@ -9,7 +9,7 @@ from app.core.security import create_access_token
 
 @pytest.fixture
 def auth_setup(db: Session):
-    user = User(id=uuid4(), email='test@test.com', password_hash='pwd')
+    user = User(id=uuid4(), name='Test User', email='test@test.com', password_hash='pwd')
     org = Organization(id=uuid4(), name='Test Org', slug='test-org', created_by=user.id)
     db.add(user)
     db.commit()
@@ -17,7 +17,8 @@ def auth_setup(db: Session):
     db.commit()
     db.commit()
     
-    member = OrganizationMember(organization_id=org.id, user_id=user.id, role="admin")
+    from app.models.organization import OrganizationRole
+    member = OrganizationMember(organization_id=org.id, user_id=user.id, role=OrganizationRole.ADMIN)
     db.add(member)
     db.commit()
     
