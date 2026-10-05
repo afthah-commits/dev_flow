@@ -1,5 +1,5 @@
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 from typing import Any, List, Optional
 from uuid import UUID
@@ -62,7 +62,7 @@ def get_project_analytics_api(
     project_id: UUID
 ) -> Any:
     from app.models.project import Project
-    project = db.query(Project).filter(Project.id == str(project_id)).first()
+    project = db.query(Project).filter(Project.id == project_id).first()
     if not project:
         raise HTTPException(status_code=404, detail="Project not found")
     member = deps.require_organization_member(db, current_user.id, UUID(project.organization_id))
@@ -210,3 +210,24 @@ def query_analytics_api(
         
     return execute_analytics_query(db, org_id, request)
 
+
+@router.post("/export")
+def export_analytics_data(
+    *,
+    request: AnalyticsQueryRequest,
+    format: str = Query("csv"),
+    db: Session = Depends(deps.get_db),
+    current_user: User = Depends(deps.get_current_user),
+    org_id: UUID = Depends(deps.get_current_organization_id)
+) -> Any:
+    if not org_id:
+        raise HTTPException(status_code=400, detail="X-Organization-Id header missing")
+    member = deps.require_organization_member(db, current_user.id, org_id)
+    check_permission(db, member, "analytics.export")
+    
+    # Reuse query executor
+    result = execute_analytics_query(db, org_id, request)
+    
+    # Note: the real DevFlow export engine uses StreamingResponse, 
+    # but here we follow Phase 18 Report export which returns JSON payload with format
+    return {"data": result.data, "format": format}
