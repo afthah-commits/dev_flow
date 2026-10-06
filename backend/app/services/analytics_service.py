@@ -12,7 +12,7 @@ from app.models.delivery import (
     ReleaseTask, PipelineRun, PipelineStatus,
 )
 from app.models.time import TimeEntry
-from app.models.workflow import Workflow, WorkflowExecution
+from app.models.workflow import Workflow, WorkflowExecution, WorkflowApproval
 from app.models.automation import Automation, AutomationExecution
 from app.models.client import ClientRequest
 from app.models.knowledge import KnowledgeDocument, KnowledgeSpace
@@ -398,18 +398,43 @@ def get_team_workload(db: Session, org_id: UUID) -> list:
 def get_workflow_analytics(db: Session, org_id: UUID) -> dict:
     wf = db.query(Workflow).filter(Workflow.organization_id == org_id).all()
     # WorkflowExecution has no organization_id column; scope via its Workflow.
-    executions = db.query(WorkflowExecution).join(
+    exec_query = db.query(WorkflowExecution).join(
         Workflow, WorkflowExecution.workflow_id == Workflow.id
-    ).filter(Workflow.organization_id == org_id).all()
+    ).filter(Workflow.organization_id == org_id)
+    executions = exec_query.all()
     success = sum(1 for e in executions if e.status == "COMPLETED")
-    
+
+    # Phase 41: real average execution time, in seconds. Only executions with
+    # both timestamps (i.e. completed ones) are included; missing timestamps
+    # are excluded rather than treated as zero. Computed from the already
+    # loaded rows, so no extra query or backend-specific SQL is needed.
+    durations = [
+        (e.completed_at - e.started_at).total_seconds()
+        for e in executions if e.started_at and e.completed_at
+    ]
+    average_execution_time = (sum(durations) / len(durations)) if durations else 0.0
+
+    # Phase 41: blocked executions. The domain model represents a blocked
+    # execution as an ACTIVE execution whose entity has a PENDING approval
+    # gate (workflow_studio.apply_transition returns PENDING_APPROVAL and the
+    # execution stays ACTIVE until the approval resolves). FAILED executions
+    # are not blocked.
+    blocked_executions = exec_query.filter(
+        WorkflowExecution.status == "ACTIVE",
+        db.query(WorkflowApproval.id).filter(
+            WorkflowApproval.entity_type == WorkflowExecution.entity_type,
+            WorkflowApproval.entity_id == WorkflowExecution.entity_id,
+            WorkflowApproval.status == "PENDING",
+        ).exists()
+    ).count()
+
     return {
         "active_workflows": sum(1 for w in wf if w.is_active),
         "executions": len(executions),
         "success_rate": (success / len(executions) * 100) if executions else 0.0,
         "failed_executions": sum(1 for e in executions if e.status == "FAILED"),
-        "average_execution_time": 0.0,
-        "blocked_executions": 0
+        "average_execution_time": average_execution_time,
+        "blocked_executions": blocked_executions
     }
 
 def get_automation_analytics(db: Session, org_id: UUID) -> dict:
