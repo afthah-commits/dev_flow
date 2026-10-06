@@ -2,6 +2,22 @@ import React, { useEffect, useState } from 'react';
 import { notificationApi } from '../lib/notificationApi';
 import { NotificationPreference } from '../types/notification';
 
+// Phase 36: preference toggles for the advanced notification categories
+const PHASE36_PREFS: {
+  key: keyof NotificationPreference;
+  label: string;
+  description: string;
+}[] = [
+  { key: 'daily_report_notifications', label: 'Daily Reports', description: 'Missing-report reminders and blocker alerts.' },
+  { key: 'deployment_notifications', label: 'Deployments', description: 'Deployment started, succeeded, failed and rollback events.' },
+  { key: 'release_notifications', label: 'Releases', description: 'Release approval requests, decisions, promotions and rollbacks.' },
+  { key: 'job_notifications', label: 'Jobs', description: 'Critical job failures and retry exhaustion.' },
+  { key: 'automation_notifications', label: 'Automations', description: 'Automation execution failures.' },
+  { key: 'workflow_approval_notifications', label: 'Workflow Approvals', description: 'Workflow approval requests and decisions.' },
+  { key: 'client_request_notifications', label: 'Client Requests', description: 'New and updated client requests you are authorized to see.' },
+  { key: 'team_activity_notifications', label: 'Team Activity', description: 'Task assignments and other team activity.' },
+];
+
 export function NotificationPreferences() {
   const [prefs, setPrefs] = useState<NotificationPreference | null>(null);
   const [saving, setSaving] = useState(false);
@@ -113,6 +129,21 @@ export function NotificationPreferences() {
           </div>
           <input type="checkbox" checked={prefs.digest_notifications} onChange={(e) => handleChange('digest_notifications', e.target.checked)} className="w-5 h-5 rounded border-gray-600 bg-gray-900" />
         </div>
+
+        {PHASE36_PREFS.map(({ key, label, description }) => (
+          <div key={key} className="flex items-center justify-between p-4 bg-gray-800 rounded">
+            <div>
+              <div className="text-white font-medium">{label}</div>
+              <div className="text-sm text-gray-400">{description}</div>
+            </div>
+            <input
+              type="checkbox"
+              checked={Boolean(prefs[key])}
+              onChange={(e) => handleChange(key, e.target.checked)}
+              className="w-5 h-5 rounded border-gray-600 bg-gray-900"
+            />
+          </div>
+        ))}
       </div>
 
       <div className="mt-8 flex justify-end">

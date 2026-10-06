@@ -24,6 +24,13 @@ def mock_deployment_task(deployment_id: UUID):
         dep.status = DeploymentStatus.BUILDING
         db.add(AuditEvent(organization_id=dep.organization_id, event_type='deployment.started', entity_type='deployment', entity_id=dep.id))
         db.commit()
+        # Phase 36: notify org members that the deployment started
+        try:
+            from app.services.notification_service import notify_deployment_event
+            from app.api.v1.notifications import _deployment_label
+            notify_deployment_event(db, dep.organization_id, dep.id, _deployment_label(dep), 'started')
+        except Exception:
+            pass
         
          # mock building
         
@@ -35,12 +42,26 @@ def mock_deployment_task(deployment_id: UUID):
         dep.status = DeploymentStatus.SUCCESS
         db.add(AuditEvent(organization_id=dep.organization_id, event_type='deployment.success', entity_type='deployment', entity_id=dep.id))
         db.commit()
+        # Phase 36: notify org members that the deployment succeeded
+        try:
+            from app.services.notification_service import notify_deployment_event
+            from app.api.v1.notifications import _deployment_label
+            notify_deployment_event(db, dep.organization_id, dep.id, _deployment_label(dep), 'success')
+        except Exception:
+            pass
     except Exception as e:
         dep = db.query(Deployment).filter(Deployment.id == deployment_id).first()
         if dep:
             dep.status = DeploymentStatus.FAILED
             db.add(AuditEvent(organization_id=dep.organization_id, event_type='deployment.failed', entity_type='deployment', entity_id=dep.id))
             db.commit()
+            # Phase 36: notify org members of deployment failure
+            try:
+                from app.services.notification_service import notify_deployment_failed
+                from app.api.v1.notifications import _deployment_label
+                notify_deployment_failed(db, dep.organization_id, dep.id, _deployment_label(dep))
+            except Exception:
+                pass
     finally:
         db.close()
 

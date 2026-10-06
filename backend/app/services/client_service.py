@@ -5,6 +5,7 @@ from fastapi import HTTPException, status
 from app.models.client import Client, ClientUser, ClientProjectAccess, ClientRequest, ClientComment, ClientActivity, ClientRequestStatus
 from app.models.project import Project
 from app.models.task import Task
+from app.models.user import User
 from app.schemas.client import ClientCreate, ClientUpdate, ClientRequestCreate, ClientRequestUpdate, ClientCommentCreate
 from app.services.audit_service import record_event
 
@@ -70,4 +71,15 @@ def create_client_request(db: Session, client_id: UUID, org_id: UUID, user_id: U
     act = ClientActivity(organization_id=org_id, client_id=client_id, event_type="REQUEST_CREATED", entity_type="REQUEST", entity_id=req.id)
     db.add(act)
     db.commit()
+
+    # Phase 36: notify the org (client request created)
+    try:
+        from app.services.notification_service import notify_client_request
+        actor = db.query(User).filter(User.id == user_id).first()
+        notify_client_request(
+            db, org_id, req.id, req.title, "created",
+            actor.name if actor else "A client",
+        )
+    except Exception:
+        pass
     return req

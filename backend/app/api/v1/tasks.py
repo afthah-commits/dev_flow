@@ -67,6 +67,19 @@ def create_task(
     db.add(task)
     db.commit()
     db.refresh(task)
+
+    # Phase 36: notify the assignee (team activity)
+    if task.assignee_id and task.assignee_id != current_user.id:
+        try:
+            from app.services.notification_service import notify_team_activity
+            notify_team_activity(
+                db, project.organization_id, task.assignee_id,
+                "Task Assigned",
+                f"{current_user.name} assigned you {task.task_key}: {task.title}",
+                "TASK", task.id, project_id=project.id,
+            )
+        except Exception:
+            pass
     return task
 
 @router.get("", response_model=PaginatedTaskResponse)

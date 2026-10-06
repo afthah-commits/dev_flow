@@ -257,3 +257,22 @@ async def handle_event(db: Session, event_payload: Dict[str, Any]):
         execution.duration_ms = int((execution.completed_at - start).total_seconds() * 1000)
         db.commit()
 
+        # Phase 36: notify the org when an automation execution fails
+        if not success:
+            try:
+                from app.services.notification_service import notify_automation_failure
+                err = None
+                from app.models.automation import AutomationActionExecution
+                failed_action = db.query(AutomationActionExecution).filter(
+                    AutomationActionExecution.execution_id == execution.id,
+                    AutomationActionExecution.status == "FAILED",
+                ).first()
+                if failed_action:
+                    err = failed_action.error_message
+                notify_automation_failure(
+                    db, automation.organization_id, automation.id,
+                    automation.name, err,
+                )
+            except Exception:
+                pass
+

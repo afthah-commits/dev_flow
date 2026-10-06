@@ -532,6 +532,16 @@ def request_approval(release_id: UUID, payload: ReleaseApprovalCreate, db: Sessi
     db.refresh(approval)
     
     record_event(db, org_id, "RELEASE_APPROVAL_REQUESTED", "RELEASE", actor_user_id=current_user.id, entity_id=release_id)
+
+    # Phase 36: notify the requested reviewer (deduplicated by notification service)
+    try:
+        if payload.reviewer_id and payload.reviewer_id != current_user.id:
+            from app.services.notification_service import notify_release_approval_requested
+            notify_release_approval_requested(
+                db, payload.reviewer_id, org_id, approval.id, release.name
+            )
+    except Exception:
+        pass
     return approval
 
 @releases_router.post("/approvals/{approval_id}/approve", response_model=ReleaseApprovalResponse)
@@ -553,6 +563,16 @@ def approve_release(approval_id: UUID, db: Session = Depends(deps.get_db), curre
     db.refresh(approval)
     
     record_event(db, org_id, "RELEASE_APPROVED", "RELEASE", actor_user_id=current_user.id, entity_id=approval.release_id)
+
+    # Phase 36: tell the requester their release was approved
+    try:
+        from app.services.notification_service import notify_release_decision
+        notify_release_decision(
+            db, approval.requested_by_id, org_id, approval.release_id,
+            release.name if release else "release", "approved", current_user.name,
+        )
+    except Exception:
+        pass
     return approval
 
 @releases_router.post("/approvals/{approval_id}/reject", response_model=ReleaseApprovalResponse)
@@ -573,6 +593,16 @@ def reject_release(approval_id: UUID, db: Session = Depends(deps.get_db), curren
     db.refresh(approval)
     
     record_event(db, org_id, "RELEASE_REJECTED", "RELEASE", actor_user_id=current_user.id, entity_id=approval.release_id)
+
+    # Phase 36: tell the requester their release was rejected
+    try:
+        from app.services.notification_service import notify_release_decision
+        notify_release_decision(
+            db, approval.requested_by_id, org_id, approval.release_id,
+            release.name if release else "release", "rejected", current_user.name,
+        )
+    except Exception:
+        pass
     return approval
 
 @releases_router.post("/approvals/{approval_id}/revoke", response_model=ReleaseApprovalResponse)
@@ -612,6 +642,13 @@ def promote_release(release_id: UUID, target_env: str, db: Session = Depends(dep
     db.refresh(release)
     
     record_event(db, org_id, "RELEASE_PROMOTED", "RELEASE", actor_user_id=current_user.id, entity_id=release.id, metadata={"target_env": target_env})
+
+    # Phase 36: tell the org the release was promoted
+    try:
+        from app.services.notification_service import notify_release_event
+        notify_release_event(db, org_id, release.id, release.name, "promoted", target_env)
+    except Exception:
+        pass
     return release
 
 @releases_router.post("/{release_id}/rollback", response_model=ReleaseResponse)
@@ -628,4 +665,11 @@ def rollback_release(release_id: UUID, db: Session = Depends(deps.get_db), curre
     db.refresh(release)
     
     record_event(db, org_id, "RELEASE_ROLLED_BACK", "RELEASE", actor_user_id=current_user.id, entity_id=release.id)
+
+    # Phase 36: tell the org the release was rolled back
+    try:
+        from app.services.notification_service import notify_release_event
+        notify_release_event(db, org_id, release.id, release.name, "rollback", None)
+    except Exception:
+        pass
     return release

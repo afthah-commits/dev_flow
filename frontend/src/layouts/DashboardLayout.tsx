@@ -67,6 +67,8 @@ export default function DashboardLayout() {
           </div>
           <Link to="/profile" className="hover:text-white transition-colors">Profile</Link>
           <div className="flex items-center space-x-3 ml-4 border-l border-gray-700 pl-4">
+            <Link to="/notifications" className="text-sm text-gray-400 hover:text-white transition-colors hidden sm:inline">Notifications</Link>
+            <Link to="/action-center" className="text-sm text-orange-400 hover:text-orange-300 transition-colors hidden sm:inline">⚡ Actions</Link>
             <NotificationCenter />
             <span className="text-sm ml-2">{user?.name}</span>
             <button onClick={logout} className="text-sm text-gray-400 hover:text-white">Logout</button>

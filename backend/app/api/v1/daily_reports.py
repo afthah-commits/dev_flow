@@ -83,6 +83,20 @@ def create_daily_report(
     db.add(audit_event)
     db.commit()
 
+    # Phase 36: notify org members if report has blockers
+    try:
+        if report.blockers and len(report.blockers) > 0:
+            from app.services.notification_service import notify_daily_report_blocker
+            notify_daily_report_blocker(
+                db,
+                organization_id,
+                report.id,
+                current_user.name,
+                report.blockers,
+            )
+    except Exception:
+        pass
+
     return report
 
 def check_admin_or_owner(db: Session, user_id: UUID, org_id: UUID):

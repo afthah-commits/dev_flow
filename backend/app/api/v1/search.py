@@ -83,4 +83,31 @@ def search_global(
             "score": 0.7
         })
 
+    # Phase 36: Notifications (user-scoped, org-filtered).
+    # Notifications are private to their owner, so this is strictly narrower
+    # than the org boundary above; organization_id IS NULL rows are legacy
+    # pre-Phase-36 records that belong to this user and are still theirs.
+    from app.models.notification import Notification
+    notifications = db.query(Notification).filter(
+        Notification.user_id == current_user.id,
+        or_(
+            Notification.organization_id == org_id,
+            Notification.organization_id.is_(None),
+        ),
+        or_(
+            Notification.title.ilike(term),
+            Notification.message.ilike(term),
+        ),
+    ).order_by(Notification.created_at.desc()).limit(5).all()
+    for n in notifications:
+        results.append({
+            "entity_type": "NOTIFICATION",
+            "entity_id": str(n.id),
+            "title": n.title,
+            "description": n.message[:100] if n.message else "",
+            "matched_field": "title/message",
+            "url": "/notifications",
+            "score": 0.6
+        })
+
     return results

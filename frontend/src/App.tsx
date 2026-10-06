@@ -22,8 +22,8 @@ import DailyReportDetails from './pages/DailyReportDetails';
 import TeamDailyReports from './pages/TeamDailyReports';
 import WeeklyDailyReports from './pages/WeeklyDailyReports';
 import BlockerDailyReports from './pages/BlockerDailyReports';
-
-
+import NotificationsPage from './pages/NotificationsPage';
+import ActionCenter from './pages/ActionCenter';
 
 import Environments from './pages/infrastructure/Environments';
 import EnvironmentDetails from './pages/infrastructure/EnvironmentDetails';
@@ -100,6 +100,8 @@ export default function App() {
             <Route path="/settings/integrations" element={<GitHubSettings />} />
             <Route path="/settings/integrations/github/callback" element={<GitHubCallback />} />
             <Route path="/settings/notifications" element={<NotificationPreferences />} />
+            <Route path="/notifications" element={<NotificationsPage />} />
+            <Route path="/action-center" element={<ActionCenter />} />
             <Route path="/organization" element={<OrganizationLayout />} />
             <Route path="/analytics/productivity" element={<ProductivityAnalytics />} />
             <Route path="/analytics/delivery" element={<DeliveryAnalytics />} />

@@ -188,6 +188,14 @@ class JobScheduler:
                     ))
             except Exception as notify_err:
                 logger.warning("job failure notification skipped: %s", type(notify_err).__name__)
+
+            # Phase 36: also notify the rest of the org through the normal
+            # notification service (preference-aware, deduplicated).
+            try:
+                from app.services.notification_service import notify_job_failure
+                notify_job_failure(db, job.organization_id, job.id, job.job_type, error_message)
+            except Exception as notify_err:
+                logger.warning("phase36 job failure notification skipped: %s", type(notify_err).__name__)
         else:
             job.status = "RETRYING"
             delay = (2 ** job.attempts) * 10

@@ -829,6 +829,19 @@ def execute_workflow_actions(db: Session, workflow: Workflow, execution: Workflo
                 db.flush()
                 result["status"] = "SUCCESS"
                 result["approval_id"] = str(approval.id)
+                # Phase 36: notify the approver if one is assigned
+                try:
+                    if approval.approver_user_id:
+                        from app.services.notification_service import notify_workflow_approval_requested
+                        notify_workflow_approval_requested(
+                            db,
+                            approval.approver_user_id,
+                            workflow.organization_id,
+                            approval.id,
+                            f"{approval.entity_type} {approval.entity_id}",
+                        )
+                except Exception:
+                    pass
             else:
                 result["status"] = "SKIPPED"
         except Exception as e:
