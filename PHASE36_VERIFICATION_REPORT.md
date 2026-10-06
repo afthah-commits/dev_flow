@@ -20,7 +20,7 @@ pre-existing failures could be separated cleanly from Phase 36 failures.
 
 ```
 $ cd backend && python -m pytest tests -q --tb=no -p no:cacheprovider
-77 failed, 80 passed, 282 warnings in 113.93s
+77 failed, 81 passed, 284 warnings in 119.77s
 ```
 
 **Baseline (HEAD, before Phase 36):**
@@ -40,12 +40,13 @@ new=0 fixed=0
 
 - **Pre-existing failures: 77** (unchanged — identical test ids)
 - **Phase 36 failures: 0**
-- **Tests added by Phase 36: 22** (`backend/tests/test_phase36_notifications.py`)
+- **Tests added by Phase 36: 23** (`backend/tests/test_phase36_notifications.py`)
+- Passed rose **58 → 81** (23 Phase 36 tests added, nothing else changed)
 
 Phase 36 suite in isolation:
 ```
 $ python -m pytest tests/test_phase36_notifications.py -q
-22 passed, 88 warnings in 37.07s
+23 passed, 90 warnings in 24.65s
 ```
 
 ---
@@ -98,6 +99,10 @@ HEAD: 86f704f37613
 MIGRATION_CYCLE=PASS
 ```
 
+That command was a throwaway Alembic driver (backup → upgrade → downgrade →
+upgrade → restore) removed after verification as a temporary Phase 36 file; the
+cycle can be reproduced with `alembic downgrade -1 && alembic upgrade head`.
+
 upgrade → downgrade → upgrade all succeeded on SQLite. No notification data
 destroyed (the migration only adds nullable/defaulted columns via
 `op.batch_alter_table`).
@@ -107,23 +112,24 @@ destroyed (the migration only adds nullable/defaulted columns via
 ## Action Center aggregation (integration check)
 
 The endpoint wraps each source in `try/except`, so a silent model mismatch
-would look like an empty list rather than an error. A standalone check proved
-each of the six sources actually returns items:
+would look like an empty list rather than an error. This is now pinned
+permanently in the suite by
+`test_action_center_aggregates_all_six_sources`, which seeds all six sources
+through the ORM and asserts each yields an action item:
 
 ```
-$ cd backend && python run_phase36_actioncenter_check.py
-ACTION ITEMS BY TYPE:
-  DAILY_REPORT_BLOCKER: 1
-  DEPLOYMENT_FAILURE: 1
-  JOB_FAILURE: 1
-  NOTIFICATION: 1
-  RELEASE_APPROVAL: 1
-  WORKFLOW_APPROVAL: 1
-AGGREGATION=PASS all 6 sources produced items
-deployment label sample: Deployment deploy-42 failed: exit 1
-all created_at tz-aware: OK
-total items: 6
+$ cd backend && python -m pytest tests/test_phase36_notifications.py -q
+23 passed, 90 warnings in 24.65s
 ```
+
+Coverage asserted by that test:
+`WORKFLOW_APPROVAL`, `RELEASE_APPROVAL`, `JOB_FAILURE`, `DEPLOYMENT_FAILURE`,
+`DAILY_REPORT_BLOCKER`, `NOTIFICATION` — plus that the deployment description
+comes from `deployment_key` and every item carries `created_at`.
+
+Before being made permanent, the same six-source check was run as a standalone
+script and printed all six types with `AGGREGATION=PASS all 6 sources produced
+items`.
 
 This check caught and fixed a real bug: `Deployment` has **no `name` and no
 `updated_at` column**, so the original deployment block silently produced zero

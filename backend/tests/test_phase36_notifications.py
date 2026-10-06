@@ -553,6 +553,99 @@ def test_notification_types_are_deterministic_and_supported(client):
         assert getattr(NotificationType, t) == t
 
 
+def test_action_center_aggregates_all_six_sources(client, db):
+    """Every aggregation source must actually yield an item.
+
+    The endpoint wraps each source in try/except, so a silent model mismatch
+    (e.g. using a non-existent Deployment.name) would look like an empty list
+    rather than an error. This pins all six sources in the permanent suite.
+    """
+    from datetime import datetime, timezone as tz
+    from uuid import uuid4 as _u4
+    from app.models.workflow import (
+        Workflow, WorkflowState, WorkflowTransition,
+        WorkflowApproval, WorkflowApprovalStatus,
+    )
+    from app.models.delivery import (
+        Release, ReleaseApproval, ReleaseApprovalStatus,
+        Deployment, DeploymentStatus,
+    )
+    from app.models.job import Job
+    from app.models.daily_report import DailyReport
+    from app.models.project import Project
+
+    headers = _register(client, "p36-all-sources@example.com")
+    user = _user_by_email(db, "p36-all-sources@example.com")
+    org = _make_org(db, user.id)
+    now = datetime.now(tz.utc)
+
+    # workflow approval (needs a real transition for its FK)
+    wf = Workflow(id=_u4(), organization_id=org.id, name="P36 WF")
+    db.add(wf); db.flush()
+    s1 = WorkflowState(id=_u4(), workflow_id=wf.id, name="Start", key="start",
+                       state_type="INITIAL", is_initial=True)
+    s2 = WorkflowState(id=_u4(), workflow_id=wf.id, name="End", key="end",
+                       state_type="FAILED", is_terminal=True)
+    db.add_all([s1, s2]); db.flush()
+    tr = WorkflowTransition(id=_u4(), workflow_id=wf.id, name="advance",
+                            from_state_id=s1.id, to_state_id=s2.id,
+                            requires_approval=True)
+    db.add(tr); db.flush()
+    db.add(WorkflowApproval(id=_u4(), workflow_transition_id=tr.id,
+                            entity_type="TASK", entity_id=_u4(),
+                            approver_user_id=user.id,
+                            status=WorkflowApprovalStatus.PENDING,
+                            requested_at=now))
+
+    # release approval
+    proj = Project(id=_u4(), name="P36 Proj", slug="p36-proj",
+                   organization_id=org.id, owner_id=user.id)
+    db.add(proj); db.flush()
+    rel = Release(id=_u4(), organization_id=org.id, project_id=proj.id,
+                  name="v1.0.0", version="1.0.0")
+    db.add(rel); db.flush()
+    db.add(ReleaseApproval(id=_u4(), organization_id=org.id, release_id=rel.id,
+                           requested_by_id=user.id, reviewer_id=user.id,
+                           status=ReleaseApprovalStatus.PENDING, created_at=now))
+
+    # failed job
+    db.add(Job(id=_u4(), organization_id=org.id, job_type="p36.probe",
+               status="FAILED", attempts=3, max_attempts=3,
+               error_message="boom", failed_at=now, created_at=now))
+
+    # failed deployment (Deployment has no name/updated_at columns)
+    db.add(Deployment(id=_u4(), organization_id=org.id, project_id=proj.id,
+                      status=DeploymentStatus.FAILED, deployment_key="deploy-42",
+                      error_message="exit 1", created_at=now))
+
+    # daily report with blockers
+    db.add(DailyReport(id=_u4(), organization_id=org.id, author_user_id=user.id,
+                       report_date=now.date(), completed_tasks=["x"],
+                       next_plan=["y"], blockers=["waiting on infra"]))
+
+    # action-required notification
+    create_notification(db, user.id, NotificationType.DAILY_REPORT_BLOCKER,
+                        "Daily Report Blocker", "2 blockers",
+                        entity_type="DAILY_REPORT", entity_id=_u4(),
+                        organization_id=org.id, action_required=True)
+    db.expire_all()
+
+    items = client.get("/api/v1/notifications/action-center", headers=headers).json()
+    types = {i["type"] for i in items}
+
+    expected = {
+        "WORKFLOW_APPROVAL", "RELEASE_APPROVAL", "JOB_FAILURE",
+        "DEPLOYMENT_FAILURE", "DAILY_REPORT_BLOCKER", "NOTIFICATION",
+    }
+    assert expected <= types, f"missing action items for: {expected - types}"
+
+    dep = [i for i in items if i["type"] == "DEPLOYMENT_FAILURE"][0]
+    assert "deploy-42" in dep["description"], \
+        "deployment label must come from deployment_key, not a nonexistent name column"
+    for i in items:
+        assert i["created_at"], f"{i['type']} must carry created_at"
+
+
 def test_all_phase36_notification_rows_carry_organization_scope(db):
     """Rows generated for org events must record their organization_id."""
     uid = uuid4()

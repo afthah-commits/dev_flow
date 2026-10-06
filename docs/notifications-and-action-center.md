@@ -373,7 +373,7 @@ only — no new UI library.
 
 ## Testing
 
-`backend/tests/test_phase36_notifications.py` — 22 tests covering:
+`backend/tests/test_phase36_notifications.py` — 23 tests covering:
 creation, dedup/idempotency, preference gating, per-category generation,
 org scoping of created rows, realtime personal/org scoping, authentication
 requirements, listing + every backend filter + pagination, read/unread/mark-all,
@@ -381,9 +381,12 @@ important state, summary counts, Action Center aggregation and ordering,
 cross-user 404s for every mutation, malformed/random ids, preference round-trip,
 type determinism, and GlobalSearch visibility.
 
-An additional standalone check
-(`backend/run_phase36_actioncenter_check.py`) proves all six Action Center
-sources actually return items against a real session.
+`test_action_center_aggregates_all_six_sources` seeds all six aggregation
+sources through the ORM and asserts each yields an action item. This matters
+because the endpoint wraps every source in `try/except` — a silent model
+mismatch would look like an empty list rather than an error. It also pins the
+deployment label derived from `deployment_key`, guarding the regression where a
+nonexistent `Deployment.name` silently produced zero deployment items.
 
 > **Note on a pre-existing test defect:** `backend/tests/api/v1/*.py` register
 > `app.dependency_overrides[deps.get_current_user]` at module import time and
