@@ -79,6 +79,7 @@ export default function DashboardLayout() {
         <Outlet />
         <TimerWidget />
       </main>
+      <GlobalSearch />
     </div>
   );
 }
