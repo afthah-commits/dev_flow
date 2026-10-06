@@ -56,3 +56,19 @@ Out-of-prefix routes called by the frontend but served elsewhere (unchanged):
   `require_organization_member` + `check_permission`. `ProductivityAnalytics.tsx`
   also loads stats and workload independently so a workload failure can no longer
   blank the page. See PHASE39_VERIFICATION_REPORT.md.
+- **Phase 40 hardening:** `/projects/{id}/github` now (a) degrades any GitHub-side
+  failure (revoked token, rate limit, 5xx, timeout, malformed payload) to a
+  zero-count 200 instead of surfacing GitHub errors, and (b) caches successful
+  aggregate counts in-process for 5 min (`GITHUB_COUNTS_TTL_SECONDS` in
+  `analytics.py`; counts only — never credentials; failures are not cached so
+  the next request retries). Connected-path behavior is pinned by mocked tests in
+  `backend/tests/test_phase40_github_reliability.py`.
+- **`workload_percentage` semantics:** tracked hours ÷ estimated hours × 100;
+  100% == estimates fully consumed; >100% over capacity (frontend renders red);
+  zero estimates → 0 (no division blowup).
+- **Contract protection:** the static contract scan in
+  `test_phase40_github_reliability.py::test_frontend_analytics_time_urls_exist_in_backend`
+  cross-checks every `api.*(...)` URL in `frontend/src` against the registered
+  FastAPI routes and fails on any nonexistent endpoint or duplicate backend
+  route. Run with: `cd backend && python -m pytest
+  tests/test_phase40_github_reliability.py::test_frontend_analytics_time_urls_exist_in_backend`

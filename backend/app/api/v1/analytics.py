@@ -3,7 +3,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 from typing import Any, List, Optional
 from uuid import UUID
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
 
 from app.api import deps
 from app.models.user import User
@@ -32,6 +32,45 @@ from app.models.github import GitHubConnection, ProjectGitHubRepository
 from app.services.github_service import GitHubService, decrypt_token
 
 router = APIRouter()
+
+# ---------------------------------------------------------------------------
+# GitHub analytics counts — reliability helpers
+#
+# Caching: lightweight in-process TTL cache of *aggregate counts only* (no
+# tokens/credentials). Deliberately not Redis/Celery — the panel tolerates
+# slightly stale counts, and a process restart simply repopulates.
+# ---------------------------------------------------------------------------
+
+_GITHUB_COUNTS_CACHE: dict = {}  # key -> (expires_at_utc, GitHubAnalyticsResponse)
+GITHUB_COUNTS_TTL_SECONDS = 300
+
+
+def _cached_github_counts(key: str):
+    entry = _GITHUB_COUNTS_CACHE.get(key)
+    if entry and entry[0] > datetime.now(timezone.utc):
+        return entry[1]
+    return None
+
+
+def _store_github_counts(key: str, response) -> None:
+    # Cap the cache so a flood of project ids cannot grow it unbounded.
+    if len(_GITHUB_COUNTS_CACHE) >= 256:
+        now = datetime.now(timezone.utc)
+        for k in [k for k, (exp, _) in _GITHUB_COUNTS_CACHE.items() if exp <= now]:
+            _GITHUB_COUNTS_CACHE.pop(k, None)
+        if len(_GITHUB_COUNTS_CACHE) >= 256:
+            _GITHUB_COUNTS_CACHE.clear()
+    _GITHUB_COUNTS_CACHE[key] = (
+        datetime.now(timezone.utc) + timedelta(seconds=GITHUB_COUNTS_TTL_SECONDS),
+        response,
+    )
+
+
+def _github_counts_error_response() -> GitHubAnalyticsResponse:
+    """Safe failure value: zeros, so the panel renders its fallback instead
+    of erroring. Distinguishable from 'connected' only by the panel itself."""
+    return GitHubAnalyticsResponse(
+        recent_commits=0, open_prs=0, closed_prs=0, open_issues=0, closed_issues=0)
 
 @router.get("/dashboard", response_model=DashboardOverview)
 def get_dashboard(
@@ -87,6 +126,12 @@ async def get_project_github_analytics_api(
     Reuses the GitHub service the rest of the integration uses; a project
     without a connected repo returns zeros rather than an error so the panel
     can render its 'connect GitHub' fallback.
+
+    Reliability: any GitHub-side failure (unauthorized/revoked token, rate
+    limit, 5xx, timeout, malformed payload) degrades to a zero-count response
+    instead of surfacing GitHub errors to this endpoint's caller. Aggregate
+    counts are cached in-process for a short TTL; only counts are cached,
+    never credentials.
     """
     project = db.query(Project).filter(Project.id == project_id).first()
     if not project:
@@ -97,25 +142,42 @@ async def get_project_github_analytics_api(
     repo = db.query(ProjectGitHubRepository).filter(
         ProjectGitHubRepository.project_id == project_id).first()
     if not repo:
-        return GitHubAnalyticsResponse(
-            recent_commits=0, open_prs=0, closed_prs=0, open_issues=0, closed_issues=0)
+        return _github_counts_error_response()
 
     conn = db.query(GitHubConnection).filter(GitHubConnection.user_id == current_user.id).first()
     if not conn:
-        return GitHubAnalyticsResponse(
-            recent_commits=0, open_prs=0, closed_prs=0, open_issues=0, closed_issues=0)
-    gh = GitHubService(decrypt_token(conn.access_token_encrypted))
-    commits = await gh.get_commits(repo.github_full_name, per_page=30)
-    pulls = await gh.get_pull_requests(repo.github_full_name, state="all", per_page=100)
-    issues = await gh.get_issues(repo.github_full_name, state="all", per_page=100)
+        return _github_counts_error_response()
 
-    return GitHubAnalyticsResponse(
-        recent_commits=len(commits),
-        open_prs=sum(1 for p in pulls if p.get("state") == "open"),
-        closed_prs=sum(1 for p in pulls if p.get("state") == "closed"),
-        open_issues=sum(1 for i in issues if i.get("state") == "open"),
-        closed_issues=sum(1 for i in issues if i.get("state") == "closed"),
-    )
+    cache_key = f"gh-counts:{project_id}:{repo.github_full_name}"
+    cached = _cached_github_counts(cache_key)
+    if cached is not None:
+        return cached
+
+    counts = _github_counts_error_response()
+    try:
+        gh = GitHubService(decrypt_token(conn.access_token_encrypted))
+        commits = await gh.get_commits(repo.github_full_name, per_page=30)
+        pulls = await gh.get_pull_requests(repo.github_full_name, state="all", per_page=100)
+        issues = await gh.get_issues(repo.github_full_name, state="all", per_page=100)
+        counts = GitHubAnalyticsResponse(
+            recent_commits=len(commits),
+            open_prs=sum(1 for p in pulls if p.get("state") == "open"),
+            closed_prs=sum(1 for p in pulls if p.get("state") == "closed"),
+            open_issues=sum(1 for i in issues if i.get("state") == "open"),
+            closed_issues=sum(1 for i in issues if i.get("state") == "closed"),
+        )
+        # Only successful fetches are cached — a failure stays uncached so the
+        # next request retries GitHub instead of pinning zeros for the TTL.
+        _store_github_counts(cache_key, counts)
+    except HTTPException:
+        # GitHub service raises HTTPException for auth/rate-limit/404; degrade
+        # to zeros rather than leaking a GitHub-side error to this caller.
+        pass
+    except Exception:
+        # Network/timeout/malformed JSON or any unexpected shape: safe zeros.
+        pass
+
+    return counts
 
 @router.get("/teams/{team_id}", response_model=TeamAnalyticsResponse)
 def get_team_analytics_api(
