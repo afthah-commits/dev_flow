@@ -8,7 +8,7 @@ from datetime import datetime
 from app.api import deps
 from app.models.user import User
 from app.schemas.analytics import (
-    DashboardOverview, ProjectAnalyticsResponse, GitHubAnalyticsResponse,
+    DashboardOverview, ProjectAnalyticsResponse,
     ExecutiveAnalyticsResponse, TeamAnalyticsResponse, SprintAnalyticsResponse,
     TimeAnalyticsResponse, WorkflowAnalyticsResponse,
     AutomationAnalyticsResponse, ClientAnalyticsResponse, KnowledgeAnalyticsResponse,
@@ -20,7 +20,7 @@ from app.services.analytics_service import (
     get_team_analytics, get_sprint_analytics,
     get_time_analytics, get_workflow_analytics, get_automation_analytics,
     get_client_analytics, get_knowledge_analytics, get_collaboration_analytics,
-    get_usage_analytics, execute_analytics_query
+    get_usage_analytics, execute_analytics_query, get_delivery_metrics, get_dora_metrics
 )
 from app.api.v1.reports import check_permission
 
@@ -102,17 +102,24 @@ def get_delivery_analytics_api(
     *,
     db: Session = Depends(deps.get_db),
     current_user: User = Depends(deps.get_current_user),
-    org_id: UUID = Depends(deps.get_current_organization_id)
+    org_id: UUID = Depends(deps.get_current_organization_id),
+    project_id: Optional[UUID] = None,
 ) -> Any:
     member = deps.require_organization_member(db, current_user.id, org_id)
     check_permission(db, member, "analytics.view")
-    # Delegate to the complete implementation in delivery.py. Previously this
-    # route returned a thinner payload from analytics_service, and because it is
-    # registered before delivery_metrics_router it shadowed the richer
-    # /analytics/delivery endpoint — so `pipeline_success_rate` (and the rest of
-    # the DeliveryMetrics shape the frontend reads) never reached the client.
-    from app.api.v1.delivery import get_delivery_metrics
-    return get_delivery_metrics(project_id=None, db=db, current_user=current_user, org_id=org_id)
+    return get_delivery_metrics(db, org_id, project_id)
+
+@router.get("/dora")
+def get_dora_analytics_api(
+    *,
+    db: Session = Depends(deps.get_db),
+    current_user: User = Depends(deps.get_current_user),
+    org_id: UUID = Depends(deps.get_current_organization_id),
+    project_id: Optional[UUID] = None,
+) -> Any:
+    member = deps.require_organization_member(db, current_user.id, org_id)
+    check_permission(db, member, "analytics.view")
+    return get_dora_metrics(db, org_id, project_id)
 
 @router.get("/productivity", response_model=TimeAnalyticsResponse)
 def get_time_analytics_api(

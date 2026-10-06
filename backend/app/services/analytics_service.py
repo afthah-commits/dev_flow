@@ -7,7 +7,10 @@ from app.models.project import Project
 from app.models.task import Task, TaskStatus
 from app.models.organization import Team, TeamMember
 from app.models.sprint import Sprint
-from app.models.delivery import Deployment, Release
+from app.models.delivery import (
+    Deployment, DeploymentStatus, Release, ReleaseStatus,
+    ReleaseTask, PipelineRun, PipelineStatus,
+)
 from app.models.time import TimeEntry
 from app.models.workflow import Workflow, WorkflowExecution
 from app.models.automation import Automation, AutomationExecution
@@ -197,11 +200,122 @@ def get_sprint_analytics(db: Session, sprint_id: UUID, org_id: UUID) -> dict:
         "average_completion_time": 0.0
     }
 
-# NOTE: get_delivery_analytics was removed in Phase 37. Its /analytics/delivery
-# route shadowed the complete implementation in app/api/v1/delivery.py
-# (get_delivery_metrics) and returned a thinner payload that omitted
-# pipeline_success_rate, breaking the Delivery Analytics page. The route now
-# delegates to get_delivery_metrics.
+# NOTE: the thin get_delivery_analytics was removed in Phase 37. Its
+# /analytics/delivery route shadowed the complete implementation and returned a
+# payload that omitted pipeline_success_rate. In Phase 38 the complete
+# implementation itself moved here from app/api/v1/delivery.py so that
+# app/api/v1/analytics.py is the single authoritative router for /analytics/*.
+
+
+def get_delivery_metrics(db: Session, org_id: UUID, project_id: UUID = None) -> dict:
+    """Delivery metrics for the org (optionally scoped to one project).
+
+    Matches the frontend DeliveryMetrics shape in
+    frontend/src/types/deliveryAnalytics.ts.
+    """
+    dep_q = db.query(Deployment).filter(Deployment.organization_id == org_id)
+    rel_q = db.query(Release).filter(Release.organization_id == org_id)
+    pipe_q = db.query(PipelineRun).filter(PipelineRun.organization_id == org_id)
+    if project_id:
+        dep_q = dep_q.filter(Deployment.project_id == project_id)
+        rel_q = rel_q.filter(Release.project_id == project_id)
+        pipe_q = pipe_q.filter(PipelineRun.project_id == project_id)
+
+    all_deps = dep_q.all()
+    all_releases = rel_q.all()
+    all_pipes = pipe_q.all()
+
+    total_deps = len(all_deps)
+    success_deps = sum(1 for d in all_deps if d.status == DeploymentStatus.SUCCESS)
+    failed_deps = sum(1 for d in all_deps if d.status == DeploymentStatus.FAILED)
+    rollback_deps = sum(1 for d in all_deps if d.status == DeploymentStatus.ROLLED_BACK)
+    avg_dur = (sum(d.duration_seconds or 0 for d in all_deps) / total_deps) if total_deps else 0
+
+    total_releases = len(all_releases)
+    released = [r for r in all_releases if r.status == ReleaseStatus.DEPLOYED and r.released_at and r.created_at]
+    avg_cycle = 0.0
+    if released:
+        cycles = [(r.released_at - r.created_at).total_seconds() / 86400 for r in released]
+        avg_cycle = sum(cycles) / len(cycles)
+
+    total_pipes = len(all_pipes)
+    success_pipes = sum(1 for p in all_pipes if p.status == PipelineStatus.SUCCESS)
+    pipe_rate = (success_pipes / total_pipes * 100) if total_pipes else 0
+
+    # Lead time: average time from first task completion to release.
+    # Phase 31: batched into 2 queries instead of 2 queries per release (N+1).
+    lead_times = []
+    if released:
+        released_ids = [r.id for r in released]
+        release_tasks = db.query(ReleaseTask.release_id, ReleaseTask.task_id)\
+            .filter(ReleaseTask.release_id.in_(released_ids)).all()
+        all_task_ids = {rt.task_id for rt in release_tasks}
+        done_tasks = {}
+        if all_task_ids:
+            done_tasks = {
+                t.id: t for t in db.query(Task)
+                .filter(Task.id.in_(all_task_ids), Task.status == TaskStatus.DONE).all()
+            }
+        tasks_by_release: dict = {}
+        for rt in release_tasks:
+            task = done_tasks.get(rt.task_id)
+            if task is not None:
+                tasks_by_release.setdefault(rt.release_id, []).append(task)
+
+        for r in released:
+            tasks = tasks_by_release.get(r.id, [])
+            if tasks and r.released_at:
+                earliest = min(t.updated_at or t.created_at for t in tasks)
+                if earliest:
+                    lead_times.append((r.released_at - earliest).total_seconds() / 86400)
+
+    avg_lead = sum(lead_times) / len(lead_times) if lead_times else 0
+
+    return {
+        "deployment_frequency": total_deps,
+        "successful_deployment_rate": (success_deps / total_deps * 100) if total_deps else 0,
+        "failed_deployment_rate": (failed_deps / total_deps * 100) if total_deps else 0,
+        "avg_deployment_duration_seconds": avg_dur,
+        "release_frequency": total_releases,
+        "avg_release_cycle_time_days": avg_cycle,
+        "pipeline_success_rate": pipe_rate,
+        "rollback_frequency": rollback_deps,
+        "avg_lead_time_days": avg_lead
+    }
+
+
+def get_dora_metrics(db: Session, org_id: UUID, project_id: UUID = None) -> dict:
+    """DORA metrics for the org (optionally scoped to one project)."""
+    dep_q = db.query(Deployment).filter(Deployment.organization_id == org_id)
+    if project_id:
+        dep_q = dep_q.filter(Deployment.project_id == project_id)
+    all_deps = dep_q.all()
+
+    if len(all_deps) < 2:
+        return {"deployment_frequency": "insufficient_data", "lead_time_for_changes": "insufficient_data", "change_failure_rate": "insufficient_data", "mean_time_to_recovery": "insufficient_data"}
+
+    total = len(all_deps)
+    failed = sum(1 for d in all_deps if d.status in [DeploymentStatus.FAILED, DeploymentStatus.ROLLED_BACK])
+    cfr = f"{(failed / total * 100):.1f}%"
+
+    sorted_deps = sorted(all_deps, key=lambda d: d.created_at)
+    first = sorted_deps[0].created_at
+    last = sorted_deps[-1].created_at
+    span_days = max((last - first).days, 1)
+    df = f"{total / span_days:.2f} per day" if span_days > 0 else "insufficient_data"
+
+    # MTTR: avg time between FAILED and next SUCCESS
+    mttr_times = []
+    for i, d in enumerate(sorted_deps):
+        if d.status in [DeploymentStatus.FAILED, DeploymentStatus.ROLLED_BACK]:
+            for j in range(i + 1, len(sorted_deps)):
+                if sorted_deps[j].status == DeploymentStatus.SUCCESS:
+                    mttr_times.append((sorted_deps[j].completed_at - d.completed_at).total_seconds() / 3600 if sorted_deps[j].completed_at and d.completed_at else 0)
+                    break
+
+    mttr = f"{sum(mttr_times) / len(mttr_times):.1f} hours" if mttr_times else "insufficient_data"
+
+    return {"deployment_frequency": df, "lead_time_for_changes": "insufficient_data", "change_failure_rate": cfr, "mean_time_to_recovery": mttr}
 
 def get_time_analytics(db: Session, org_id: UUID) -> dict:
     entries = db.query(TimeEntry).filter(TimeEntry.organization_id == org_id).all()
@@ -219,7 +333,10 @@ def get_time_analytics(db: Session, org_id: UUID) -> dict:
 
 def get_workflow_analytics(db: Session, org_id: UUID) -> dict:
     wf = db.query(Workflow).filter(Workflow.organization_id == org_id).all()
-    executions = db.query(WorkflowExecution).filter(WorkflowExecution.organization_id == org_id).all()
+    # WorkflowExecution has no organization_id column; scope via its Workflow.
+    executions = db.query(WorkflowExecution).join(
+        Workflow, WorkflowExecution.workflow_id == Workflow.id
+    ).filter(Workflow.organization_id == org_id).all()
     success = sum(1 for e in executions if e.status == "COMPLETED")
     
     return {

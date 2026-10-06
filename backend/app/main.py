@@ -4,8 +4,7 @@ from app.core.config import settings
 from app.api.v1 import daily_reports, auth, projects, tasks, dashboard, github, ai, analytics, notifications, organizations, teams, invitations, labels, templates, sprints, milestones, backlog, roadmap, audit, time, jobs, realtime
 from app.api.v1.delivery import (
     project_releases_router, releases_router, environments_router,
-    project_deployments_router, deployments_router, pipelines_router,
-    delivery_metrics_router
+    project_deployments_router, deployments_router, pipelines_router
 )
 from app.api.v1 import collaboration, search, ws, knowledge, clients, client_portal, workflows, custom_fields
 
@@ -67,7 +66,8 @@ app.include_router(environments_router, prefix=f"{settings.API_V1_STR}/projects/
 app.include_router(project_deployments_router, prefix=f"{settings.API_V1_STR}/projects/{{project_id}}/deployments", tags=["deployments"])
 app.include_router(deployments_router, prefix=f"{settings.API_V1_STR}/deployments", tags=["deployments"])
 app.include_router(pipelines_router, prefix=f"{settings.API_V1_STR}/projects/{{project_id}}/pipelines", tags=["pipelines"])
-app.include_router(delivery_metrics_router, prefix=f"{settings.API_V1_STR}/analytics", tags=["delivery-analytics"])
+# Phase 38: delivery/dora metrics moved into the single analytics router;
+# delivery_metrics_router previously created a second router on /analytics.
 
 # Phase 14: Collaboration
 app.include_router(collaboration.comments_router, prefix=f"{settings.API_V1_STR}/comments", tags=["comments"])
