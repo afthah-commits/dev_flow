@@ -19,8 +19,6 @@ import asyncio
 from datetime import datetime, timezone, timedelta
 from uuid import uuid4
 
-import pytest
-
 from app.models.notification import Notification, NotificationPreference, NotificationType
 from app.models.user import User
 from app.models.organization import Organization, OrganizationMember, OrganizationRole
