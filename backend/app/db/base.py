@@ -19,7 +19,7 @@ from app.models.api_key import APIKey
 from app.models.security import Role, RolePermission, UserSession, LoginEvent
 from app.models.job import Job, JobExecution, JobSchedule
 from app.models.report import Report
-from app.models.dashboard import Dashboard, DashboardWidget
+from app.models.dashboard import Dashboard, DashboardWidget, DashboardLayout
 from app.models.governance import OrganizationSecurityPolicy, OrganizationDomain, OrganizationIdentityProvider, DataExportJob, SecurityApproval, OrganizationDeletionRequest, UserDeletionRequest
 from app.models.infrastructure import DeploymentApproval, EnvironmentVariable, ServiceHealth, DeploymentIncident
 from app.models.ai_project_memory import AIProjectMemory

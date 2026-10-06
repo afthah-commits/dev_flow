@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session, joinedload
 from sqlalchemy import func, case
-from typing import Any
+from typing import Any, List, Optional
 from datetime import datetime, timezone
 
 from app.api import deps
@@ -11,6 +11,8 @@ from app.models.user import User
 from app.models.project import Project
 from app.models.task import Task, TaskStatus
 from app.schemas.task import TaskStats
+from app.models.organization import OrganizationRole
+from app.models.security import Role
 
 router = APIRouter()
 
@@ -94,3 +96,137 @@ def get_active_sprints(
             "progress": (completed_pts / total_pts * 100) if total_pts > 0 else 0
         })
     return result
+
+
+# ---------------------------------------------------------------------------
+# Phase 45 — personal dashboard layout (widget show/hide + ordering)
+# ---------------------------------------------------------------------------
+
+from app.models.dashboard import DashboardLayout
+from app.schemas.report import DashboardLayoutSave, DashboardLayoutResponse
+
+# Server-authoritative widget registry. The frontend mirrors these IDs; the
+# backend is the security boundary — widgets a user lacks permission for are
+# filtered out of every response and silently dropped from saved layouts.
+WIDGET_REGISTRY = {
+    "stats": {"title": "Overview Stats", "required_permission": "analytics.view"},
+    "active_sprints": {"title": "Active Sprints", "required_permission": None},
+    "recent_projects": {"title": "Recent Projects", "required_permission": None},
+}
+DEFAULT_LAYOUT = ["stats", "active_sprints", "recent_projects"]
+MAX_LAYOUT_ITEMS = 50
+
+
+def _has_widget_permission(db: Session, member, permission: Optional[str]) -> bool:
+    """Non-raising variant of reports.check_permission for widget filtering."""
+    if not permission:
+        return True
+    if member.role in (OrganizationRole.OWNER, OrganizationRole.ADMIN):
+        return True
+    if member.custom_role_id:
+        role = db.query(Role).filter(Role.id == member.custom_role_id).first()
+        if role:
+            perms = {rp.permission for rp in role.permissions}
+            return permission in perms
+    return False
+
+
+def _default_widgets_for(db: Session, member) -> List[dict]:
+    return [
+        {"id": wid, "visible": True}
+        for wid in DEFAULT_LAYOUT
+        if wid in WIDGET_REGISTRY
+        and _has_widget_permission(db, member, WIDGET_REGISTRY[wid]["required_permission"])
+    ]
+
+
+def _clean_layout(db: Session, member, widgets: List[dict]) -> List[dict]:
+    """Drop unknown/stale widget IDs, duplicates and widgets the user may not
+    see. Keeps the caller's order and visibility flags; adds ids missing from
+    the registry nowhere (they are simply gone)."""
+    seen = set()
+    cleaned = []
+    for item in widgets:
+        wid = item.get("id")
+        if wid not in WIDGET_REGISTRY or wid in seen:
+            continue
+        if not _has_widget_permission(db, member, WIDGET_REGISTRY[wid]["required_permission"]):
+            continue
+        seen.add(wid)
+        cleaned.append({"id": wid, "visible": bool(item.get("visible", True))})
+    return cleaned
+
+
+def _load_or_default(db: Session, current_user, org_id: UUID) -> tuple:
+    member = deps.require_organization_member(db, current_user.id, org_id)
+    saved = db.query(DashboardLayout).filter(
+        DashboardLayout.user_id == current_user.id,
+        DashboardLayout.organization_id == org_id,
+    ).first()
+    return member, (saved.layout if saved else None), saved
+
+
+@router.get("/layout", response_model=DashboardLayoutResponse)
+def get_dashboard_layout(
+    *,
+    db: Session = Depends(deps.get_db),
+    current_user: User = Depends(deps.get_current_user),
+    org_id: UUID = Depends(deps.get_current_organization_id),
+) -> Any:
+    if not org_id:
+        raise HTTPException(status_code=400, detail="X-Organization-Id header missing")
+    member, saved, _row = _load_or_default(db, current_user, org_id)
+    if saved is None:
+        return DashboardLayoutResponse(
+            widgets=_default_widgets_for(db, member),
+            defaults=DEFAULT_LAYOUT,
+            customized=False,
+        )
+    # Stale/unknown widget IDs are ignored safely on read.
+    return DashboardLayoutResponse(
+        widgets=_clean_layout(db, member, saved),
+        defaults=DEFAULT_LAYOUT,
+        customized=True,
+    )
+
+
+@router.put("/layout", response_model=DashboardLayoutResponse)
+def save_dashboard_layout(
+    *,
+    layout_in: DashboardLayoutSave,
+    db: Session = Depends(deps.get_db),
+    current_user: User = Depends(deps.get_current_user),
+    org_id: UUID = Depends(deps.get_current_organization_id),
+) -> Any:
+    if not org_id:
+        raise HTTPException(status_code=400, detail="X-Organization-Id header missing")
+    if len(layout_in.widgets) > MAX_LAYOUT_ITEMS:
+        raise HTTPException(status_code=422, detail=f"Layout cannot contain more than {MAX_LAYOUT_ITEMS} widgets")
+    member, _, row = _load_or_default(db, current_user, org_id)
+    cleaned = _clean_layout(db, member, [w.model_dump() for w in layout_in.widgets])
+    if row is None:
+        row = DashboardLayout(user_id=current_user.id, organization_id=org_id)
+        db.add(row)
+    row.layout = cleaned
+    db.commit()
+    return DashboardLayoutResponse(widgets=cleaned, defaults=DEFAULT_LAYOUT, customized=True)
+
+
+@router.delete("/layout", response_model=DashboardLayoutResponse)
+def reset_dashboard_layout(
+    *,
+    db: Session = Depends(deps.get_db),
+    current_user: User = Depends(deps.get_current_user),
+    org_id: UUID = Depends(deps.get_current_organization_id),
+) -> Any:
+    if not org_id:
+        raise HTTPException(status_code=400, detail="X-Organization-Id header missing")
+    member, _, row = _load_or_default(db, current_user, org_id)
+    if row is not None:
+        db.delete(row)
+        db.commit()
+    return DashboardLayoutResponse(
+        widgets=_default_widgets_for(db, member),
+        defaults=DEFAULT_LAYOUT,
+        customized=False,
+    )

@@ -88,3 +88,21 @@ class ReportFilter(BaseModel):
     status: Optional[str] = None
     priority: Optional[str] = None
 
+
+# ---------------------------------------------------------------------------
+# Phase 45 — personal dashboard layout preferences
+# ---------------------------------------------------------------------------
+
+class DashboardLayoutItem(BaseModel):
+    """A single widget placement. Only known widget IDs are ever stored."""
+    id: str
+    visible: bool = True
+
+class DashboardLayoutSave(BaseModel):
+    widgets: List[DashboardLayoutItem]
+
+class DashboardLayoutResponse(BaseModel):
+    widgets: List[DashboardLayoutItem]
+    defaults: List[str]
+    customized: bool = False
+
