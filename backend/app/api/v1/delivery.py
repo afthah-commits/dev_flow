@@ -1,9 +1,8 @@
 import random
-from typing import Any, List, Optional
+from typing import Any, List
 from uuid import UUID
-from fastapi import APIRouter, Depends, HTTPException, Query, status, Response
+from fastapi import APIRouter, Depends, HTTPException, status, Response
 from sqlalchemy.orm import Session
-from sqlalchemy import func
 from datetime import datetime, timezone
 
 from app.api import deps
@@ -22,7 +21,7 @@ from app.schemas.delivery import (
     EnvironmentCreate, EnvironmentUpdate, EnvironmentResponse,
     DeploymentCreate, DeploymentResponse,
     PipelineRunCreate, PipelineRunResponse,
-    DeliveryMetrics, DoraMetrics, ReleaseApprovalCreate, ReleaseApprovalResponse
+    ReleaseApprovalCreate, ReleaseApprovalResponse
 )
 
 project_releases_router = APIRouter()
