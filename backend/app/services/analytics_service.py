@@ -99,6 +99,33 @@ def get_executive_analytics(db: Session, org_id: UUID, date_from: datetime = Non
         "automation_success_rate": 0.0
     }
 
+def _deadline_analysis(tasks, now: datetime) -> dict:
+    """Bucket non-done tasks by how their due date relates to `now`.
+
+    Buckets are mutually exclusive and ordered: overdue -> due_today ->
+    due_soon (next 7 days) -> future -> no_deadline. Completed tasks are not
+    deadline liabilities, so they are excluded.
+    """
+    today = now.date()
+    buckets = {"overdue": 0, "due_today": 0, "due_soon": 0, "future": 0, "no_deadline": 0}
+    for t in tasks:
+        if t.status == TaskStatus.DONE:
+            continue
+        if not t.due_date:
+            buckets["no_deadline"] += 1
+            continue
+        due = t.due_date.date() if isinstance(t.due_date, datetime) else t.due_date
+        if due < today:
+            buckets["overdue"] += 1
+        elif due == today:
+            buckets["due_today"] += 1
+        elif due <= today + timedelta(days=7):
+            buckets["due_soon"] += 1
+        else:
+            buckets["future"] += 1
+    return buckets
+
+
 def get_project_analytics(db: Session, project_id: UUID) -> dict:
     tasks = db.query(Task).filter(Task.project_id == project_id).all()
     total = len(tasks)
@@ -107,11 +134,13 @@ def get_project_analytics(db: Session, project_id: UUID) -> dict:
     overdue = sum(1 for t in tasks if t.due_date and t.due_date.replace(tzinfo=timezone.utc) < now and t.status != TaskStatus.DONE)
     
     return {
-        "status_distribution": {
-            "TODO": sum(1 for t in tasks if t.status == TaskStatus.TODO),
-            "IN_PROGRESS": sum(1 for t in tasks if t.status == TaskStatus.IN_PROGRESS),
-            "DONE": completed
-        },
+        # ProjectAnalyticsResponse.status_distribution is List[TaskStatusDistribution]
+        # and the frontend maps over it, so this must be a list of {status, count}.
+        "status_distribution": [
+            {"status": "TODO", "count": sum(1 for t in tasks if t.status == TaskStatus.TODO)},
+            {"status": "IN_PROGRESS", "count": sum(1 for t in tasks if t.status == TaskStatus.IN_PROGRESS)},
+            {"status": "DONE", "count": completed},
+        ],
         "task_completion": (completed / total * 100) if total > 0 else 0.0,
         "overdue_tasks": overdue,
         "sprint_progress": 0.0,
@@ -127,7 +156,7 @@ def get_project_analytics(db: Session, project_id: UUID) -> dict:
         "overdue": overdue,
         "health": {"score": 100, "status": "Healthy"},
         "priority_distribution": [],
-        "deadlines": {"overdue": overdue, "due_today": 0, "due_soon": 0, "future": 0, "no_deadline": 0},
+        "deadlines": _deadline_analysis(tasks, now),
         "trends": []
     }
 
@@ -168,21 +197,11 @@ def get_sprint_analytics(db: Session, sprint_id: UUID, org_id: UUID) -> dict:
         "average_completion_time": 0.0
     }
 
-def get_delivery_analytics(db: Session, org_id: UUID) -> dict:
-    deps = db.query(Deployment).filter(Deployment.organization_id == org_id).all()
-    success = sum(1 for d in deps if d.status == "SUCCESS")
-    failed = sum(1 for d in deps if d.status == "FAILED")
-    
-    return {
-        "deployment_frequency": len(deps),
-        "lead_time_for_changes": 0.0,
-        "change_failure_rate": (failed / len(deps) * 100) if deps else 0.0,
-        "mean_time_to_recovery": 0.0,
-        "successful_deployments": success,
-        "failed_deployments": failed,
-        "rollbacks": 0,
-        "deployment_duration": 0.0
-    }
+# NOTE: get_delivery_analytics was removed in Phase 37. Its /analytics/delivery
+# route shadowed the complete implementation in app/api/v1/delivery.py
+# (get_delivery_metrics) and returned a thinner payload that omitted
+# pipeline_success_rate, breaking the Delivery Analytics page. The route now
+# delegates to get_delivery_metrics.
 
 def get_time_analytics(db: Session, org_id: UUID) -> dict:
     entries = db.query(TimeEntry).filter(TimeEntry.organization_id == org_id).all()

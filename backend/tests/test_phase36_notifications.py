@@ -40,22 +40,6 @@ from app.services.notification_service import (
 # helpers
 # ---------------------------------------------------------------------------
 
-@pytest.fixture(autouse=True)
-def _isolate_from_stale_auth_overrides():
-    """tests/api/v1/*.py register app.dependency_overrides[get_current_user]
-    at module import time and never remove them, so any test collected after
-    them silently bypasses authentication. Phase 36 tests assert on real RBAC,
-    so they clear those leaked overrides for their own duration and restore
-    them afterwards (leaving other suites exactly as they were).
-    """
-    from app.main import app as _app
-    from app.api import deps as _deps
-    keys = (_deps.get_current_user, _deps.get_current_organization_id)
-    saved = {k: _app.dependency_overrides.pop(k) for k in keys if k in _app.dependency_overrides}
-    yield
-    _app.dependency_overrides.update(saved)
-
-
 def _register(client, email, name="Phase36 User"):
     client.post("/api/v1/auth/register", json={"name": name, "email": email, "password": "password123"})
     tok = client.post("/api/v1/auth/login", json={"email": email, "password": "password123"}).json()["access_token"]

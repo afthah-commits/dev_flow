@@ -10,14 +10,14 @@ from app.models.user import User
 from app.schemas.analytics import (
     DashboardOverview, ProjectAnalyticsResponse, GitHubAnalyticsResponse,
     ExecutiveAnalyticsResponse, TeamAnalyticsResponse, SprintAnalyticsResponse,
-    DeliveryAnalyticsResponse, TimeAnalyticsResponse, WorkflowAnalyticsResponse,
+    TimeAnalyticsResponse, WorkflowAnalyticsResponse,
     AutomationAnalyticsResponse, ClientAnalyticsResponse, KnowledgeAnalyticsResponse,
     CollaborationAnalyticsResponse, UsageAnalyticsResponse,
     AnalyticsQueryRequest, AnalyticsQueryResponse
 )
 from app.services.analytics_service import (
     get_dashboard_overview, get_project_analytics, get_executive_analytics,
-    get_team_analytics, get_sprint_analytics, get_delivery_analytics,
+    get_team_analytics, get_sprint_analytics,
     get_time_analytics, get_workflow_analytics, get_automation_analytics,
     get_client_analytics, get_knowledge_analytics, get_collaboration_analytics,
     get_usage_analytics, execute_analytics_query
@@ -65,7 +65,7 @@ def get_project_analytics_api(
     project = db.query(Project).filter(Project.id == project_id).first()
     if not project:
         raise HTTPException(status_code=404, detail="Project not found")
-    member = deps.require_organization_member(db, current_user.id, UUID(project.organization_id))
+    member = deps.require_organization_member(db, current_user.id, project.organization_id)
     check_permission(db, member, "analytics.projects")
     return get_project_analytics(db, project_id)
 
@@ -97,7 +97,7 @@ def get_sprint_analytics_api(
     check_permission(db, member, "analytics.projects")
     return get_sprint_analytics(db, sprint_id, org_id)
 
-@router.get("/delivery", response_model=DeliveryAnalyticsResponse)
+@router.get("/delivery")
 def get_delivery_analytics_api(
     *,
     db: Session = Depends(deps.get_db),
@@ -106,7 +106,13 @@ def get_delivery_analytics_api(
 ) -> Any:
     member = deps.require_organization_member(db, current_user.id, org_id)
     check_permission(db, member, "analytics.view")
-    return get_delivery_analytics(db, org_id)
+    # Delegate to the complete implementation in delivery.py. Previously this
+    # route returned a thinner payload from analytics_service, and because it is
+    # registered before delivery_metrics_router it shadowed the richer
+    # /analytics/delivery endpoint — so `pipeline_success_rate` (and the rest of
+    # the DeliveryMetrics shape the frontend reads) never reached the client.
+    from app.api.v1.delivery import get_delivery_metrics
+    return get_delivery_metrics(project_id=None, db=db, current_user=current_user, org_id=org_id)
 
 @router.get("/productivity", response_model=TimeAnalyticsResponse)
 def get_time_analytics_api(

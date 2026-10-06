@@ -23,8 +23,19 @@ def override_get_current_user():
 def override_get_current_organization_id():
     return mock_org_id
 
-app.dependency_overrides[deps.get_current_user] = override_get_current_user
-app.dependency_overrides[deps.get_current_organization_id] = override_get_current_organization_id
+@pytest.fixture(autouse=True)
+def _isolate_auth_overrides():
+    """Register this module's auth overrides for its own tests only.
+
+    Previously these were assigned at import time (i.e. during collection), so
+    they leaked into every test collected afterwards and silently bypassed
+    authentication for the rest of the suite.
+    """
+    app.dependency_overrides[deps.get_current_user] = override_get_current_user
+    app.dependency_overrides[deps.get_current_organization_id] = override_get_current_organization_id
+    yield
+    app.dependency_overrides.pop(deps.get_current_user, None)
+    app.dependency_overrides.pop(deps.get_current_organization_id, None)
 
 def test_create_daily_report(client: TestClient, db: Session, monkeypatch):
     monkeypatch.setattr("app.api.deps.require_organization_member", lambda *args, **kwargs: None)

@@ -25,3 +25,7 @@ coverage.xml
 *.swo
 .DS_Store
 secrets/
+
+# Local SQLite databases (generated; reprovision with `alembic upgrade head`)
+backend/*.db
+*.sqlite3
