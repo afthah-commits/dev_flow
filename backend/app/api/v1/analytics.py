@@ -66,11 +66,15 @@ def _store_github_counts(key: str, response) -> None:
     )
 
 
-def _github_counts_error_response() -> GitHubAnalyticsResponse:
-    """Safe failure value: zeros, so the panel renders its fallback instead
-    of erroring. Distinguishable from 'connected' only by the panel itself."""
+def _github_counts_response(status: str) -> GitHubAnalyticsResponse:
+    """Safe zero-count value with a status marker (Phase 42) so the panel can
+    distinguish: 'ok' = live/cached data, 'not_connected' = user has no GitHub
+    integration, 'no_repository' = project has no repo configured,
+    'unavailable' = GitHub-side failure (degraded). No error details, tokens,
+    or credentials are ever exposed."""
     return GitHubAnalyticsResponse(
-        recent_commits=0, open_prs=0, closed_prs=0, open_issues=0, closed_issues=0)
+        recent_commits=0, open_prs=0, closed_prs=0, open_issues=0, closed_issues=0,
+        status=status)
 
 @router.get("/dashboard", response_model=DashboardOverview)
 def get_dashboard(
@@ -142,18 +146,18 @@ async def get_project_github_analytics_api(
     repo = db.query(ProjectGitHubRepository).filter(
         ProjectGitHubRepository.project_id == project_id).first()
     if not repo:
-        return _github_counts_error_response()
+        return _github_counts_response("no_repository")
 
     conn = db.query(GitHubConnection).filter(GitHubConnection.user_id == current_user.id).first()
     if not conn:
-        return _github_counts_error_response()
+        return _github_counts_response("not_connected")
 
     cache_key = f"gh-counts:{project_id}:{repo.github_full_name}"
     cached = _cached_github_counts(cache_key)
     if cached is not None:
         return cached
 
-    counts = _github_counts_error_response()
+    counts = _github_counts_response("unavailable")
     try:
         gh = GitHubService(decrypt_token(conn.access_token_encrypted))
         commits = await gh.get_commits(repo.github_full_name, per_page=30)
@@ -165,6 +169,7 @@ async def get_project_github_analytics_api(
             closed_prs=sum(1 for p in pulls if p.get("state") == "closed"),
             open_issues=sum(1 for i in issues if i.get("state") == "open"),
             closed_issues=sum(1 for i in issues if i.get("state") == "closed"),
+            status="ok",
         )
         # Only successful fetches are cached — a failure stays uncached so the
         # next request retries GitHub instead of pinning zeros for the TTL.

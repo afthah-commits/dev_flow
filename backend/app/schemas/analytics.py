@@ -85,6 +85,11 @@ class GitHubAnalyticsResponse(BaseModel):
     closed_prs: int
     open_issues: int
     closed_issues: int
+    # Phase 42: optional non-breaking status. "ok" = live/cached GitHub data
+    # (or a genuinely empty repo); "unavailable" = GitHub-side failure, so the
+    # UI can show a degraded warning instead of misleading zeros. Absence of
+    # the field in old payloads is treated as "ok" by existing consumers.
+    status: Optional[str] = "ok"
 
 class TeamAnalyticsResponse(BaseModel):
     member_count: int = 0

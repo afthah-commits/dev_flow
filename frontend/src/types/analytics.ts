@@ -41,10 +41,14 @@ export interface ProjectAnalyticsResponse {
   trends: TaskTrendItem[];
 }
 
+export type GitHubAnalyticsStatus = 'ok' | 'not_connected' | 'no_repository' | 'unavailable';
+
 export interface GitHubAnalyticsResponse {
   recent_commits: number;
   open_prs: number;
   closed_prs: number;
   open_issues: number;
   closed_issues: number;
+  /** Phase 42: optional degraded/absence indicator; missing = 'ok' (old payloads). */
+  status?: GitHubAnalyticsStatus;
 }

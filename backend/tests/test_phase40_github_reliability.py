@@ -24,7 +24,9 @@ from app.models.github import GitHubConnection, ProjectGitHubRepository
 from app.services.github_service import encrypt_token
 
 ZERO = {"recent_commits": 0, "open_prs": 0, "closed_prs": 0,
-        "open_issues": 0, "closed_issues": 0}
+        "open_issues": 0, "closed_issues": 0, "status": "unavailable"}
+OK_ZERO = {"recent_commits": 0, "open_prs": 0, "closed_prs": 0,
+           "open_issues": 0, "closed_issues": 0, "status": "ok"}
 
 
 def _register(client, email):
@@ -93,7 +95,7 @@ def test_connected_project_returns_real_counts(client, db):
         res = client.get(URL.format(pid=project.id), headers=headers)
     assert res.status_code == 200
     assert res.json() == {"recent_commits": 3, "open_prs": 2, "closed_prs": 1,
-                          "open_issues": 1, "closed_issues": 1}
+                          "open_issues": 1, "closed_issues": 1, "status": "ok"}
     # No credentials anywhere in the response
     assert "ghs_testtoken" not in res.text
     assert "access_token" not in res.json()
@@ -199,7 +201,7 @@ def test_failed_counts_are_not_cached(client, db):
         r2 = client.get(URL.format(pid=project.id), headers=headers)
     assert r1.json() == ZERO
     assert r2.json() == {"recent_commits": 1, "open_prs": 0, "closed_prs": 0,
-                         "open_issues": 0, "closed_issues": 0}
+                         "open_issues": 0, "closed_issues": 0, "status": "ok"}
 
 
 # ---------------------------------------------------------------------------
@@ -216,7 +218,8 @@ def test_repo_missing_degrades_to_zeros_without_touching_github(client, db):
     with patch.object(analytics_module.GitHubService, "__new__", return_value=gh):
         res = client.get(URL.format(pid=project.id), headers=headers)
     assert res.status_code == 200
-    assert res.json() == ZERO
+    # Phase 42: repo-missing is now distinguishable from a GitHub failure.
+    assert res.json() == {**ZERO, "status": "no_repository"}
     assert gh.get_commits.await_count == 0
 
 

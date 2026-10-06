@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { analyticsApi } from '../lib/analyticsApi';
 import { ProjectAnalyticsResponse, GitHubAnalyticsResponse } from '../types/analytics';
 import { Project } from '../types/project';
@@ -14,6 +14,7 @@ export function ProjectAnalytics({ project }: Props) {
   const [analytics, setAnalytics] = useState<ProjectAnalyticsResponse | null>(null);
   const [gh, setGh] = useState<GitHubAnalyticsResponse | null>(null);
   const [loading, setLoading] = useState(true);
+  const [ghRetrying, setGhRetrying] = useState(false);
 
   useEffect(() => {
     Promise.all([
@@ -21,6 +22,16 @@ export function ProjectAnalytics({ project }: Props) {
       analyticsApi.getGitHubAnalytics(project.id).then(setGh).catch(() => {})
     ]).finally(() => setLoading(false));
   }, [project.id]);
+
+  const retryGitHub = useCallback(() => {
+    // Single explicit retry: no polling, no loop; backend cache is respected.
+    if (ghRetrying) return;
+    setGhRetrying(true);
+    analyticsApi.getGitHubAnalytics(project.id)
+      .then(setGh)
+      .catch(() => {})
+      .finally(() => setGhRetrying(false));
+  }, [project.id, ghRetrying]);
 
   if (loading) return <div className="p-6 text-gray-400">Loading analytics...</div>;
   if (!analytics) return <div className="p-6 text-red-400">Failed to load analytics</div>;
@@ -129,7 +140,37 @@ export function ProjectAnalytics({ project }: Props) {
         {/* GitHub Analytics */}
         <div className="bg-gray-900 border border-gray-800 p-4 rounded-lg">
           <h3 className="text-white font-bold mb-4">GitHub Activity</h3>
-          {gh ? (
+          {gh === null ? (
+            <div
+              className="text-gray-500 h-full flex items-center justify-center"
+              role="status"
+            >
+              GitHub analytics is temporarily unavailable.
+            </div>
+          ) : gh.status === 'unavailable' ? (
+            <div
+              className="rounded border border-yellow-800 bg-yellow-900/20 px-3 py-2 text-sm text-yellow-200"
+              role="status"
+            >
+              <p>GitHub data is temporarily unavailable. Showing no activity rather than stale counts.</p>
+              <button
+                type="button"
+                onClick={retryGitHub}
+                disabled={ghRetrying}
+                className="mt-2 rounded border border-yellow-700 px-2 py-1 text-xs font-medium text-yellow-100 hover:bg-yellow-900/40 disabled:opacity-50"
+              >
+                {ghRetrying ? 'Retrying…' : 'Retry'}
+              </button>
+            </div>
+          ) : gh.status === 'not_connected' ? (
+            <div className="text-gray-500 h-full flex items-center justify-center" role="status">
+              GitHub is not connected. Connect GitHub in Settings to unlock repository analytics.
+            </div>
+          ) : gh.status === 'no_repository' ? (
+            <div className="text-gray-500 h-full flex items-center justify-center" role="status">
+              No GitHub repository is configured for this project.
+            </div>
+          ) : (
             <div className="space-y-3">
               <div className="flex justify-between items-center">
                 <span className="text-gray-300">Recent Commits</span>
@@ -143,10 +184,6 @@ export function ProjectAnalytics({ project }: Props) {
                 <span className="text-gray-300">Open Issues</span>
                 <span className="text-white font-medium">{gh.open_issues}</span>
               </div>
-            </div>
-          ) : (
-            <div className="text-gray-500 h-full flex items-center justify-center">
-              Connect GitHub to unlock repository analytics.
             </div>
           )}
         </div>

@@ -174,9 +174,11 @@ def test_project_github_no_repo_returns_zeros(client, db):
     project = _make_project(db, org, owner_id)
     res = client.get(f"/api/v1/analytics/projects/{project.id}/github", headers=headers)
     assert res.status_code == 200
-    # Contract pinned to the frontend GitHubAnalyticsResponse type
+    # Contract pinned to the frontend GitHubAnalyticsResponse type.
+    # Phase 42: repo-missing is now explicitly marked (was ambiguous zeros).
     assert res.json() == {"recent_commits": 0, "open_prs": 0, "closed_prs": 0,
-                          "open_issues": 0, "closed_issues": 0}
+                          "open_issues": 0, "closed_issues": 0,
+                          "status": "no_repository"}
 
 
 def test_project_github_route_registered_once():
