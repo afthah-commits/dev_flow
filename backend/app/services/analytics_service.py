@@ -331,6 +331,70 @@ def get_time_analytics(db: Session, org_id: UUID) -> dict:
         "project_distribution": {}
     }
 
+def get_team_workload(db: Session, org_id: UUID) -> list:
+    """Per-member workload for the org's teams.
+
+    Members of multiple teams appear once. workload_percentage compares tracked
+    hours to assigned-task estimates (100% == estimates fully consumed); members
+    without estimates get 0 rather than a division blowup.
+    """
+    member_rows = db.query(TeamMember.user_id).join(
+        Team, TeamMember.team_id == Team.id
+    ).filter(Team.organization_id == org_id).distinct().all()
+    user_ids = [m.user_id for m in member_rows]
+    if not user_ids:
+        return []
+
+    users = {u.id: u for u in db.query(User).filter(User.id.in_(user_ids)).all()}
+    tasks = db.query(Task).filter(
+        Task.assignee_id.in_(user_ids),
+        Task.project_id.in_(
+            db.query(Project.id).filter(Project.organization_id == org_id)
+        ),
+    ).all()
+    entries = db.query(TimeEntry).filter(
+        TimeEntry.organization_id == org_id,
+        TimeEntry.user_id.in_(user_ids),
+    ).all()
+
+    tracked_by_user: dict = {}
+    for e in entries:
+        tracked_by_user[e.user_id] = tracked_by_user.get(e.user_id, 0) + (e.duration_seconds or 0) / 3600.0
+
+    tasks_by_user: dict = {}
+    for t in tasks:
+        tasks_by_user.setdefault(t.assignee_id, []).append(t)
+
+    result = []
+    for uid in user_ids:
+        user = users.get(uid)
+        if not user:
+            continue
+        user_tasks = tasks_by_user.get(uid, [])
+        assigned = len(user_tasks)
+        completed = sum(1 for t in user_tasks if t.status == TaskStatus.DONE)
+        overdue = sum(
+            1 for t in user_tasks
+            if t.due_date
+            and t.due_date.replace(tzinfo=timezone.utc) < datetime.now(timezone.utc)
+            and t.status != TaskStatus.DONE
+        )
+        tracked = tracked_by_user.get(uid, 0.0)
+        estimated = sum(t.estimate_hours or 0.0 for t in user_tasks)
+        workload_pct = (tracked / estimated * 100.0) if estimated > 0 else 0.0
+        result.append({
+            "user_id": uid,
+            "user_name": user.name,
+            "tracked_hours": tracked,
+            "assigned_tasks": assigned,
+            "completed_tasks": completed,
+            "overdue_tasks": overdue,
+            "estimated_hours": estimated,
+            "workload_percentage": workload_pct,
+        })
+    return result
+
+
 def get_workflow_analytics(db: Session, org_id: UUID) -> dict:
     wf = db.query(Workflow).filter(Workflow.organization_id == org_id).all()
     # WorkflowExecution has no organization_id column; scope via its Workflow.

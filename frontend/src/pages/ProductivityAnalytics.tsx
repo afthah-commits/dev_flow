@@ -11,22 +11,44 @@ export default function ProductivityAnalytics() {
     loadData();
   }, []);
 
+  const [error, setError] = useState(false);
+
   const loadData = async () => {
-    try {
-      const [statsData, workloadData] = await Promise.all([
-        timeApi.getProductivityStats(),
-        timeApi.getTeamWorkload()
-      ]);
-      setStats(statsData);
-      setWorkload(workloadData);
-    } catch (e) {
-      console.error(e);
-    } finally {
-      setLoading(false);
+    // Load stats and workload independently so a workload failure cannot
+    // blank the whole page.
+    const [statsRes, workloadRes] = await Promise.allSettled([
+      timeApi.getProductivityStats(),
+      timeApi.getTeamWorkload()
+    ]);
+    if (statsRes.status === 'fulfilled') {
+      setStats(statsRes.value);
+    } else {
+      console.error(statsRes.reason);
+      setError(true);
     }
+    if (workloadRes.status === 'fulfilled') {
+      setWorkload(workloadRes.value);
+    } else {
+      console.error(workloadRes.reason);
+    }
+    setLoading(false);
   };
 
   if (loading) return <div className="p-8 text-gray-400">Loading analytics...</div>;
+
+  if (error && !stats) {
+    return (
+      <div className="p-8 text-center">
+        <p className="text-red-400">Failed to load productivity analytics.</p>
+        <button
+          onClick={() => { setLoading(true); setError(false); loadData(); }}
+          className="mt-4 px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white text-sm rounded-lg"
+        >
+          Retry
+        </button>
+      </div>
+    );
+  }
 
   return (
     <div className="max-w-6xl mx-auto space-y-6">

@@ -27,6 +27,8 @@ Perm = `check_permission(db, member, …)` from `app/api/v1/reports.py`.
 | `/knowledge` | GET | `get_knowledge_analytics` | `analytics.view` | — | same |
 | `/collaboration` | GET | `get_collaboration_analytics` | `analytics.view` | — | same |
 | `/usage` | GET | `get_usage_analytics` | `analytics.view` | — | `test_analytics_member_can_read_own_org` |
+| `/team-workload` | GET | `get_team_workload` | `analytics.view` | `ProductivityAnalytics.tsx` (`timeApi.getTeamWorkload`) | `test_phase39_analytics_clients.py` |
+| `/projects/{id}/github` | GET | `get_project_github_analytics_api` (GitHubService) | `analytics.projects` | `ProjectAnalytics.tsx` (`analyticsApi.getGitHubAnalytics`) | `test_phase39_analytics_clients.py` |
 | `/query` | POST | `execute_analytics_query` | `analytics.view` | — | — |
 | `/export` | POST | — | `analytics.view` | — | — |
 
@@ -44,10 +46,13 @@ Out-of-prefix routes called by the frontend but served elsewhere (unchanged):
 - `get_workflow_analytics` previously queried a non-existent
   `WorkflowExecution.organization_id` column (500 on every call). It now joins
   through `Workflow.organization_id`.
-- Known pre-existing gaps, deliberately not "fixed" here (they would create
-  endpoints nobody calls): the frontend's `analyticsApi.getProjectGitHubAnalytics`
-  targets `/analytics/projects/{id}/github`, which no backend route serves, and
-  `timeApi.getTeamWorkload` targets `/analytics/team-workload`, which also does
-  not exist. `getProjectGitHubAnalytics` has no callers; `getTeamWorkload` is
-  called by `ProductivityAnalytics.tsx`, which already renders from the working
-  `/analytics/productivity` call. See PHASE38_VERIFICATION_REPORT.md.
+- Phase 38 left two client/route mismatches (documented above). **Phase 39
+  resolved both** by adding the missing routes rather than deleting live
+  consumers: `/team-workload` (per-member workload for the org's teams, reusing
+  the previously orphaned `TeamWorkloadItem` schema) and
+  `/projects/{id}/github` (commit/PR/issue counts via the existing
+  `GitHubService`; a project with no connected repo returns zeros so the panel
+  renders its "connect GitHub" fallback instead of erroring). Both enforce
+  `require_organization_member` + `check_permission`. `ProductivityAnalytics.tsx`
+  also loads stats and workload independently so a workload failure can no longer
+  blank the page. See PHASE39_VERIFICATION_REPORT.md.

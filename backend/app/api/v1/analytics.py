@@ -7,6 +7,7 @@ from datetime import datetime
 
 from app.api import deps
 from app.models.user import User
+from app.models.project import Project
 from app.schemas.analytics import (
     DashboardOverview, ProjectAnalyticsResponse,
     ExecutiveAnalyticsResponse, TeamAnalyticsResponse, SprintAnalyticsResponse,
@@ -20,9 +21,15 @@ from app.services.analytics_service import (
     get_team_analytics, get_sprint_analytics,
     get_time_analytics, get_workflow_analytics, get_automation_analytics,
     get_client_analytics, get_knowledge_analytics, get_collaboration_analytics,
-    get_usage_analytics, execute_analytics_query, get_delivery_metrics, get_dora_metrics
+    get_usage_analytics, execute_analytics_query, get_delivery_metrics, get_dora_metrics,
+    get_team_workload
 )
 from app.api.v1.reports import check_permission
+# TeamWorkloadItem is defined in schemas/time.py (it belongs to the time domain)
+from app.schemas.time import TeamWorkloadItem
+from app.schemas.analytics import GitHubAnalyticsResponse
+from app.models.github import GitHubConnection, ProjectGitHubRepository
+from app.services.github_service import GitHubService, decrypt_token
 
 router = APIRouter()
 
@@ -61,13 +68,54 @@ def get_project_analytics_api(
     current_user: User = Depends(deps.get_current_user),
     project_id: UUID
 ) -> Any:
-    from app.models.project import Project
     project = db.query(Project).filter(Project.id == project_id).first()
     if not project:
         raise HTTPException(status_code=404, detail="Project not found")
     member = deps.require_organization_member(db, current_user.id, project.organization_id)
     check_permission(db, member, "analytics.projects")
     return get_project_analytics(db, project_id)
+
+@router.get("/projects/{project_id}/github", response_model=GitHubAnalyticsResponse)
+async def get_project_github_analytics_api(
+    *,
+    db: Session = Depends(deps.get_db),
+    current_user: User = Depends(deps.get_current_user),
+    project_id: UUID
+) -> Any:
+    """Counts backing the ProjectAnalytics 'GitHub Activity' panel.
+
+    Reuses the GitHub service the rest of the integration uses; a project
+    without a connected repo returns zeros rather than an error so the panel
+    can render its 'connect GitHub' fallback.
+    """
+    project = db.query(Project).filter(Project.id == project_id).first()
+    if not project:
+        raise HTTPException(status_code=404, detail="Project not found")
+    member = deps.require_organization_member(db, current_user.id, project.organization_id)
+    check_permission(db, member, "analytics.projects")
+
+    repo = db.query(ProjectGitHubRepository).filter(
+        ProjectGitHubRepository.project_id == project_id).first()
+    if not repo:
+        return GitHubAnalyticsResponse(
+            recent_commits=0, open_prs=0, closed_prs=0, open_issues=0, closed_issues=0)
+
+    conn = db.query(GitHubConnection).filter(GitHubConnection.user_id == current_user.id).first()
+    if not conn:
+        return GitHubAnalyticsResponse(
+            recent_commits=0, open_prs=0, closed_prs=0, open_issues=0, closed_issues=0)
+    gh = GitHubService(decrypt_token(conn.access_token_encrypted))
+    commits = await gh.get_commits(repo.github_full_name, per_page=30)
+    pulls = await gh.get_pull_requests(repo.github_full_name, state="all", per_page=100)
+    issues = await gh.get_issues(repo.github_full_name, state="all", per_page=100)
+
+    return GitHubAnalyticsResponse(
+        recent_commits=len(commits),
+        open_prs=sum(1 for p in pulls if p.get("state") == "open"),
+        closed_prs=sum(1 for p in pulls if p.get("state") == "closed"),
+        open_issues=sum(1 for i in issues if i.get("state") == "open"),
+        closed_issues=sum(1 for i in issues if i.get("state") == "closed"),
+    )
 
 @router.get("/teams/{team_id}", response_model=TeamAnalyticsResponse)
 def get_team_analytics_api(
@@ -131,6 +179,17 @@ def get_time_analytics_api(
     member = deps.require_organization_member(db, current_user.id, org_id)
     check_permission(db, member, "analytics.view")
     return get_time_analytics(db, org_id)
+
+@router.get("/team-workload", response_model=List[TeamWorkloadItem])
+def get_team_workload_api(
+    *,
+    db: Session = Depends(deps.get_db),
+    current_user: User = Depends(deps.get_current_user),
+    org_id: UUID = Depends(deps.get_current_organization_id)
+) -> Any:
+    member = deps.require_organization_member(db, current_user.id, org_id)
+    check_permission(db, member, "analytics.view")
+    return get_team_workload(db, org_id)
 
 @router.get("/workflow", response_model=WorkflowAnalyticsResponse)
 def get_workflow_analytics_api(
