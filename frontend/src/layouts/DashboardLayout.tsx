@@ -43,6 +43,7 @@ export default function DashboardLayout() {
           <Link to="/" className="hover:text-white transition-colors">Dashboard</Link>
           <Link to="/ai" className="hover:text-white transition-colors">AI Intelligence</Link>
           <Link to="/projects" className="hover:text-white transition-colors">Projects</Link>
+          <Link to="/templates" className="hover:text-white transition-colors">Templates</Link>
           <div className="relative group">
             <span className="hover:text-white transition-colors cursor-pointer">Infrastructure</span>
             <div className="absolute hidden group-hover:block bg-gray-800 p-2 rounded shadow-lg z-10 w-40">

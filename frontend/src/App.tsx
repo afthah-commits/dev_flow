@@ -64,6 +64,7 @@ import WorkflowStudio from "./pages/WorkflowStudio";
 import WorkflowFormBuilder from "./pages/WorkflowFormBuilder";
 import WorkflowAnalytics from "./pages/WorkflowAnalytics";
 import Workflows from "./pages/Workflows";
+import Templates from "./pages/Templates";
 
 export default function App() {
   return (
@@ -83,6 +84,7 @@ export default function App() {
             <Route path="/profile" element={<Profile />} />
             <Route path="/time" element={<Timesheet />} />
             <Route path="/projects" element={<Projects />} />
+            <Route path="/templates" element={<Templates />} />
             <Route path="/projects/new" element={<ProjectForm />} />
             <Route path="/projects/:projectId" element={<ProjectDetails />} />
               <Route path="/dashboards" element={<Dashboards />} />

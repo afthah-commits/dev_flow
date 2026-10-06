@@ -20,12 +20,17 @@ def sanitize_metadata(metadata: Any) -> Any:
             else:
                 sanitized[k] = sanitize_metadata(v)
         return sanitized
-    elif isinstance(metadata, list):
+    elif isinstance(metadata, (list, tuple, set)):
         return [sanitize_metadata(item) for item in metadata]
     elif isinstance(metadata, UUID):
         return str(metadata)
     elif hasattr(metadata, "isoformat"):
         return metadata.isoformat()
+    elif hasattr(metadata, "__dict__") and not isinstance(metadata, (str, int, float, bool)):
+        # ORM/model objects (e.g. relationship attributes captured from
+        # instance __dict__) are not JSON serializable; record a stable
+        # reference instead of failing the whole commit.
+        return f"<{type(metadata).__name__}:{getattr(metadata, 'id', 'unsaved')}>"
     return metadata
 
 def record_event(

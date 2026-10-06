@@ -33,3 +33,5 @@ from app.models.workflow import Workflow, WorkflowState, WorkflowTransition, Wor
 
 
 from app.models.daily_report import DailyReport
+
+from app.models.project_template import ProjectTemplate, ProjectTemplateTask
