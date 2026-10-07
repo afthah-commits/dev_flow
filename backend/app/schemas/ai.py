@@ -65,6 +65,48 @@ class AIActionResponse(BaseModel):
     structured_data: Optional[dict] = None
 
 
+# ---------------------------------------------------------------------------
+# Phase 47 — AI-assisted planning & estimation (advisory only)
+# ---------------------------------------------------------------------------
+
+class AIPlanningRequest(BaseModel):
+    task_id: Optional[UUID] = None
+
+class AIPlanningSuggestion(BaseModel):
+    title: str
+    description: str = ""
+    priority: str = "MEDIUM"
+
+class AIPlanningCapacity(BaseModel):
+    status: str  # OK | OVER_CAPACITY | INSUFFICIENT_DATA
+    sprint_id: Optional[UUID] = None
+    sprint_name: Optional[str] = None
+    capacity_points: Optional[float] = None
+    committed_points: Optional[float] = None
+    remaining_points: Optional[float] = None
+
+class AIPlanningAnalysis(BaseModel):
+    """Advisory AI planning output. Never applied automatically."""
+    task_id: Optional[UUID] = None
+    project_id: UUID
+    complexity: str  # LOW | MEDIUM | HIGH
+    complexity_factors: List[str]
+    estimate_points: float
+    estimate_confidence: str  # HIGH | MEDIUM | LOW
+    estimate_factors: List[str]
+    risks: List[str]
+    missing_information: List[str]
+    dependency_concerns: List[str]
+    suggested_breakdown: List[AIPlanningSuggestion]
+    capacity: Optional[AIPlanningCapacity] = None
+    advisory: bool = True
+    provider: str = ""
+
+class AIPlanningApplyRequest(BaseModel):
+    task_id: UUID
+    suggestions: List[AIPlanningSuggestion]
+
+
 class ProjectSummary(BaseModel):
     current_status: str
     progress: str

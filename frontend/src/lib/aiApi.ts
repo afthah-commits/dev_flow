@@ -1,5 +1,5 @@
 import { api } from './axios';
-import { AIConversation, AIMessage, AIActionResponse, TaskSuggestion, TaskBreakdown } from '../types/ai';
+import { AIConversation, AIMessage, AIActionResponse, TaskSuggestion, TaskBreakdown, AIPlanningAnalysis, AIPlanningSuggestion } from '../types/ai';
 
 export const aiApi = {
   listConversations: async (projectId?: string): Promise<AIConversation[]> => {
@@ -61,6 +61,16 @@ export const aiApi = {
   },
   getDailyBrief: async (projectId: string) => {
     const res = await api.get(`/ai/projects/${projectId}/daily-brief`);
+    return res.data;
+  },
+
+  // Phase 47 — AI planning & estimation (advisory only)
+  analyzePlanning: async (projectId: string, taskId?: string): Promise<AIPlanningAnalysis> => {
+    const res = await api.post(`/ai/projects/${projectId}/planning/analyze`, taskId ? { task_id: taskId } : {});
+    return res.data;
+  },
+  applyPlanningSuggestions: async (projectId: string, taskId: string, suggestions: AIPlanningSuggestion[]) => {
+    const res = await api.post(`/ai/projects/${projectId}/planning/apply`, { task_id: taskId, suggestions });
     return res.data;
   },
   getUsage: async () => {

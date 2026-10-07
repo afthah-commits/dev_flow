@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { aiApi } from '../lib/aiApi';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
+import { ProjectAIPlanning } from './ProjectAIPlanning';
 
 export function ProjectIntelligence({ project }: { project: any }) {
   const [forecast, setForecast] = useState<any>(null);
@@ -47,6 +48,9 @@ export function ProjectIntelligence({ project }: { project: any }) {
 
   return (
     <div className="space-y-6">
+      {/* Phase 47 — AI-assisted planning & estimation (advisory only) */}
+      <ProjectAIPlanning project={project} />
+
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {/* Health Report */}
         {healthReport && (

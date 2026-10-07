@@ -14,9 +14,13 @@ from app.schemas.ai import (
     AIConversationCreate, AIConversationResponse, AIChatRequest, AIMessageResponse,
     AIActionResponse, TaskSuggestion, TaskBreakdown, AITaskDescriptionRequest, AITaskBreakdownRequest
 )
+from app.schemas.ai import (
+    AIPlanningRequest, AIPlanningAnalysis, AIPlanningApplyRequest, AIPlanningSuggestion,
+)
 from app.schemas.workflow import AIWorkflowSuggestion
 from app.services.ai.service import get_ai_provider, SYSTEM_PROMPT
 from app.services.ai.context import build_project_context
+from app.services.ai.planning import build_planning_analysis
 from app.core.rate_limit import rate_limit
 
 # AI endpoints are computationally expensive; cap per-IP request volume.
@@ -127,6 +131,146 @@ async def send_message(
     db.refresh(ai_msg)
     
     return ai_msg
+
+# ---------------------------------------------------------------------------
+# Phase 47 — AI-assisted planning & estimation (ADVISORY ONLY)
+# ---------------------------------------------------------------------------
+
+MAX_APPLY_SUGGESTIONS = 8
+MAX_APPLY_TITLE_LEN = 200
+MAX_APPLY_DESC_LEN = 1000
+_APPLY_PRIORITIES = {"LOW", "MEDIUM", "HIGH", "CRITICAL"}
+
+from app.models.task import Task as _Task  # noqa: E402
+
+
+def _get_planning_project_and_task(
+    db: Session, project_id: UUID, current_user: User, task_id: UUID | None
+):
+    """Shared auth + scoping for planning endpoints. AI never bypasses RBAC."""
+    project = db.query(Project).filter(Project.id == project_id).first()
+    if not project:
+        raise HTTPException(status_code=404, detail="Project not found")
+    deps.require_organization_member(db, current_user.id, project.organization_id)
+    task = None
+    if task_id is not None:
+        task = db.query(_Task).filter(_Task.id == task_id, _Task.project_id == project.id).first()
+        if not task:
+            raise HTTPException(status_code=404, detail="Task not found")
+    return project, task
+
+
+@router.post("/projects/{project_id}/planning/analyze", response_model=AIPlanningAnalysis)
+async def analyze_planning(
+    project_id: UUID,
+    request: AIPlanningRequest,
+    db: Session = Depends(deps.get_db),
+    current_user: User = Depends(deps.get_current_user),
+    org_id: UUID = Depends(deps.require_current_organization_id),
+    _rl: None = Depends(rate_limit(*AI_RATE_LIMIT)),
+) -> Any:
+    """ADVISORY planning analysis (complexity, estimate, risks, breakdown,
+    sprint capacity). Preview only — never mutates anything."""
+
+    project, task = _get_planning_project_and_task(db, project_id, current_user, request.task_id)
+    # The analyzed task must belong to the caller's organization.
+    if task is not None and str(task.project.organization_id) != str(org_id):
+        raise HTTPException(status_code=403, detail="Task not in current organization")
+
+    provider = get_ai_provider()
+    analysis = await build_planning_analysis(db, project, task, provider, org_id)
+
+    record_event(
+        db=db,
+        organization_id=org_id,
+        actor_user_id=current_user.id,
+        event_type="ai.planning_analyzed",
+        entity_type="project",
+        entity_id=project_id,
+        metadata={"task_id": str(request.task_id) if request.task_id else None,
+                  "provider": type(provider).__name__, "advisory": True},
+    )
+    return analysis
+
+
+@router.post("/projects/{project_id}/planning/apply", status_code=201)
+def apply_planning_suggestions(
+    project_id: UUID,
+    request: AIPlanningApplyRequest,
+    db: Session = Depends(deps.get_db),
+    current_user: User = Depends(deps.get_current_user),
+    org_id: UUID = Depends(deps.require_current_organization_id),
+) -> Any:
+    """Apply ONLY the user-selected suggestions as subtasks.
+
+    Explicit user action — an AI response can never trigger mutations.
+    Transactional: all selected suggestions are created in one commit,
+    or nothing is created.
+    """
+    project, task = _get_planning_project_and_task(db, project_id, current_user, request.task_id)
+    TaskModel = _Task
+
+    suggestions = request.suggestions
+    if not suggestions:
+        raise HTTPException(status_code=422, detail="No suggestions selected")
+    if len(suggestions) > MAX_APPLY_SUGGESTIONS:
+        raise HTTPException(status_code=422, detail="Too many suggestions (max 8)")
+
+    cleaned = []
+    for s in suggestions:
+        title = (s.title or "").strip()
+        if not title:
+            raise HTTPException(status_code=422, detail="Suggestion title required")
+        priority = (s.priority or "MEDIUM").upper()
+        if priority not in _APPLY_PRIORITIES:
+            priority = "MEDIUM"
+        cleaned.append({
+            "title": title[:MAX_APPLY_TITLE_LEN],
+            "description": (s.description or "").strip()[:MAX_APPLY_DESC_LEN],
+            "priority": priority,
+        })
+
+    try:
+        from app.models.task import TaskPriority
+        created = []
+        for item in cleaned:
+            project.task_seq_num += 1
+            seq = project.task_seq_num
+            sub = TaskModel(
+                project_id=project.id,
+                parent_id=task.id,
+                title=item["title"],
+                description=item["description"] or None,
+                priority=TaskPriority[item["priority"]],
+                creator_id=current_user.id,
+                task_key=f"{project.key}-{seq}" if project.key else f"PROJ-{seq}",
+            )
+            db.add(sub)
+            created.append(sub)
+        db.commit()  # single transaction: all or nothing
+        for sub in created:
+            db.refresh(sub)
+    except Exception:
+        db.rollback()
+        raise HTTPException(status_code=500, detail="Failed to apply suggestions")
+
+    record_event(
+        db=db,
+        organization_id=org_id,
+        actor_user_id=current_user.id,
+        event_type="ai.planning_applied",
+        entity_type="task",
+        entity_id=task.id,
+        metadata={"created_count": len(created),
+                  "created_task_keys": [c.task_key for c in created],
+                  "project_id": str(project_id)},
+    )
+    return {
+        "applied": len(created),
+        "task_ids": [str(c.id) for c in created],
+        "task_keys": [c.task_key for c in created],
+    }
+
 
 # --- Quick Actions (Structured Outputs) ---
 @router.post("/projects/{project_id}/actions/task-suggestion", response_model=AIActionResponse)
