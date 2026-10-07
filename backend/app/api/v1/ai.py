@@ -136,11 +136,6 @@ async def send_message(
 # Phase 47 — AI-assisted planning & estimation (ADVISORY ONLY)
 # ---------------------------------------------------------------------------
 
-MAX_APPLY_SUGGESTIONS = 8
-MAX_APPLY_TITLE_LEN = 200
-MAX_APPLY_DESC_LEN = 1000
-_APPLY_PRIORITIES = {"LOW", "MEDIUM", "HIGH", "CRITICAL"}
-
 from app.models.task import Task as _Task  # noqa: E402
 
 
@@ -193,6 +188,87 @@ async def analyze_planning(
     return analysis
 
 
+MAX_APPLY_SUGGESTIONS = 8       # children per parent
+MAX_APPLY_TITLE_LEN = 200
+MAX_APPLY_DESC_LEN = 1000
+_APPLY_PRIORITIES = {"LOW", "MEDIUM", "HIGH", "CRITICAL"}
+MAX_APPLY_DEPTH = 3             # root level 0 → grandchildren level 2
+MAX_APPLY_TOTAL_NODES = 32
+
+class _ValidationError(Exception):
+    pass
+
+
+def _tree_depth(cleaned) -> int:
+    if not cleaned:
+        return 0
+    return 1 + max((_tree_depth(item["children"]) for item in cleaned), default=0)
+
+
+def _validate_suggestion_tree(suggestions):
+    """Validate the complete suggestion tree server-side before any write.
+
+    Enforces: non-empty bounded titles, valid priorities (invalid → coerced),
+    depth ≤ MAX_APPLY_DEPTH, ≤ MAX_APPLY_SUGGESTIONS children per parent,
+    ≤ MAX_APPLY_TOTAL_NODES nodes total, parent_suggestion_id always refers
+    to an ancestor in this tree (no unknown ids, no self/circular links),
+    and each node's nesting level ≤ its parent's + 1. Returns a cleaned
+    pre-order nested structure plus the total created node count.
+    """
+    if not suggestions:
+        raise _ValidationError("No suggestions selected")
+    if len(suggestions) > MAX_APPLY_TOTAL_NODES:
+        raise _ValidationError(f"Too many suggestions (max {MAX_APPLY_TOTAL_NODES})")
+
+    known_keys: set = {None}  # roots implicitly parented to analyzed task
+    cleaned: list = []
+    state = {"count": 0}
+
+    def _clean(items, level, parent_key) -> list:
+        if len(items) > MAX_APPLY_SUGGESTIONS:
+            raise _ValidationError(f"Too many suggestions at one level (max {MAX_APPLY_SUGGESTIONS})")
+        if level >= MAX_APPLY_DEPTH:
+            raise _ValidationError(f"Suggestion tree too deep (max {MAX_APPLY_DEPTH} levels)")
+        out = []
+        for s in items:
+            if state["count"] >= MAX_APPLY_TOTAL_NODES:
+                raise _ValidationError(f"Too many suggestion nodes (max {MAX_APPLY_TOTAL_NODES})")
+            title = (s.title or "").strip()
+            if not title:
+                raise _ValidationError("Suggestion title required")
+            if s.parent_suggestion_id is not None and s.parent_suggestion_id not in known_keys:
+                raise _ValidationError("Unknown parent_suggestion_id in hierarchy")
+            if s.parent_suggestion_id == (s.suggestion_id or None) and s.suggestion_id:
+                raise _ValidationError("Circular suggestion hierarchy")
+            priority = (s.priority or "MEDIUM").upper()
+            if priority not in _APPLY_PRIORITIES:
+                priority = "MEDIUM"
+            est = s.estimated_points
+            if not isinstance(est, (int, float)) or isinstance(est, bool):
+                est = None
+            else:
+                est = max(0.0, min(float(est), 100.0))
+            key = (s.suggestion_id or f"idx-{state['count']}")
+            if key in known_keys:
+                raise _ValidationError("Duplicate suggestion id in hierarchy")
+            known_keys.add(key)
+            state["count"] += 1
+            children = _clean(s.children or [], level + 1, key)
+            out.append({
+                "key": key,
+                "title": title[:MAX_APPLY_TITLE_LEN],
+                "description": (s.description or "").strip()[:MAX_APPLY_DESC_LEN],
+                "priority": priority,
+                "level": level,
+                "estimated_points": est,
+                "children": children,
+            })
+        return out
+
+    cleaned = _clean(suggestions, 0, None)
+    return cleaned, state["count"]
+
+
 @router.post("/projects/{project_id}/planning/apply", status_code=201)
 def apply_planning_suggestions(
     project_id: UUID,
@@ -204,52 +280,56 @@ def apply_planning_suggestions(
     """Apply ONLY the user-selected suggestions as subtasks.
 
     Explicit user action — an AI response can never trigger mutations.
-    Transactional: all selected suggestions are created in one commit,
-    or nothing is created.
+    Phase 48: suggestions may be a nested tree (≤ MAX_APPLY_DEPTH levels,
+    ≤ MAX_APPLY_SUGGESTIONS children per parent, ≤ MAX_APPLY_TOTAL totals);
+    malformed hierarchies (unknown parent ids, cycles, wrong levels) are
+    rejected before any write. Transactional: all selected suggestions are
+    created in one commit, or nothing is created.
     """
     project, task = _get_planning_project_and_task(db, project_id, current_user, request.task_id)
     TaskModel = _Task
 
-    suggestions = request.suggestions
-    if not suggestions:
+    try:
+        cleaned, created_count = _validate_suggestion_tree(request.suggestions)
+    except _ValidationError as e:
+        raise HTTPException(status_code=422, detail=str(e))
+    if created_count == 0:
         raise HTTPException(status_code=422, detail="No suggestions selected")
-    if len(suggestions) > MAX_APPLY_SUGGESTIONS:
-        raise HTTPException(status_code=422, detail="Too many suggestions (max 8)")
-
-    cleaned = []
-    for s in suggestions:
-        title = (s.title or "").strip()
-        if not title:
-            raise HTTPException(status_code=422, detail="Suggestion title required")
-        priority = (s.priority or "MEDIUM").upper()
-        if priority not in _APPLY_PRIORITIES:
-            priority = "MEDIUM"
-        cleaned.append({
-            "title": title[:MAX_APPLY_TITLE_LEN],
-            "description": (s.description or "").strip()[:MAX_APPLY_DESC_LEN],
-            "priority": priority,
-        })
 
     try:
         from app.models.task import TaskPriority
-        created = []
-        for item in cleaned:
-            project.task_seq_num += 1
-            seq = project.task_seq_num
-            sub = TaskModel(
-                project_id=project.id,
-                parent_id=task.id,
-                title=item["title"],
-                description=item["description"] or None,
-                priority=TaskPriority[item["priority"]],
-                creator_id=current_user.id,
-                task_key=f"{project.key}-{seq}" if project.key else f"PROJ-{seq}",
-            )
-            db.add(sub)
-            created.append(sub)
+        created = []  # flat list of (TaskModel, key) in pre-order
+        key_to_task = {None: task.id}  # suggestion key -> created parent task id
+
+        def _create(items, parent_task_id, level):
+            for item in items:
+                project.task_seq_num += 1
+                seq = project.task_seq_num
+                sub = TaskModel(
+                    project_id=project.id,
+                    parent_id=parent_task_id,
+                    title=item["title"],
+                    description=item["description"] or None,
+                    priority=TaskPriority[item["priority"]],
+                    creator_id=current_user.id,
+                    task_key=f"{project.key}-{seq}" if project.key else f"PROJ-{seq}",
+                )
+                db.add(sub)
+                created.append(sub)
+                key_to_task[item["key"]] = sub
+                if item.get("children"):
+                    # flush so the parent's PK is assigned before children
+                    # reference it (all within the same transaction).
+                    db.flush()
+                    _create(item["children"], sub.id, level + 1)
+
+        _create(cleaned, task.id, 0)
         db.commit()  # single transaction: all or nothing
         for sub in created:
             db.refresh(sub)
+    except HTTPException:
+        db.rollback()
+        raise
     except Exception:
         db.rollback()
         raise HTTPException(status_code=500, detail="Failed to apply suggestions")
@@ -263,6 +343,7 @@ def apply_planning_suggestions(
         entity_id=task.id,
         metadata={"created_count": len(created),
                   "created_task_keys": [c.task_key for c in created],
+                  "max_depth": _tree_depth(cleaned),
                   "project_id": str(project_id)},
     )
     return {

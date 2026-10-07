@@ -67,17 +67,17 @@ def _make_org(db, owner_id, slug=None):
 # ---------------------------------------------------------------------------
 
 def test_no_duplicate_routes_anywhere_in_app():
-    from app.main import app
     from collections import Counter
+    from tests.conftest import iter_flattened_routes  # FastAPI>=0.135 nested routers
     seen = [(getattr(r, "path", ""), tuple(sorted(getattr(r, "methods", []) or [])))
-            for r in app.routes if hasattr(r, "methods")]
+            for r in iter_flattened_routes() if hasattr(r, "methods")]
     dups = [p for p, c in Counter(seen).items() if c > 1]
     assert not dups, f"duplicate routes: {dups}"
 
 
 def test_delivery_and_dora_registered_on_analytics_router():
-    from app.main import app
-    paths = {getattr(r, "path", "") for r in app.routes}
+    from tests.conftest import iter_flattened_routes  # FastAPI>=0.135 nested routers
+    paths = {getattr(r, "path", "") for r in iter_flattened_routes()}
     assert "/api/v1/analytics/delivery" in paths
     assert "/api/v1/analytics/dora" in paths
 

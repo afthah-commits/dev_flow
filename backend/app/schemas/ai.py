@@ -76,6 +76,14 @@ class AIPlanningSuggestion(BaseModel):
     title: str
     description: str = ""
     priority: str = "MEDIUM"
+    # Phase 48 — progressive (multi-level) breakdown fields. A flat
+    # Phase 47 suggestion is still valid (level defaults to 0, no parent,
+    # no children, no per-suggestion estimate).
+    suggestion_id: Optional[str] = None
+    estimated_points: Optional[float] = None
+    level: int = 0
+    parent_suggestion_id: Optional[str] = None
+    children: Optional[List["AIPlanningSuggestion"]] = None
 
 class AIPlanningCapacity(BaseModel):
     status: str  # OK | OVER_CAPACITY | INSUFFICIENT_DATA

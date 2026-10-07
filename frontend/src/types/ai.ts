@@ -36,6 +36,12 @@ export interface AIPlanningSuggestion {
   title: string;
   description: string;
   priority: string;
+  // Phase 48 — progressive (multi-level) breakdown fields
+  suggestion_id?: string;
+  estimated_points?: number;
+  level: number;
+  parent_suggestion_id?: string | null;
+  children?: AIPlanningSuggestion[];
 }
 
 export interface AIPlanningCapacity {

@@ -182,9 +182,9 @@ def test_project_github_no_repo_returns_zeros(client, db):
 
 
 def test_project_github_route_registered_once():
-    from app.main import app
     from collections import Counter
+    from tests.conftest import iter_flattened_routes  # FastAPI>=0.135 nested routers
     matches = [(r.path, tuple(sorted(r.methods)))
-               for r in app.routes
+               for r in iter_flattened_routes()
                if getattr(r, "path", "") == "/api/v1/analytics/projects/{project_id}/github"]
     assert len(matches) == 1, f"expected exactly one route, got {matches}"

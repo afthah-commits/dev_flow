@@ -9,6 +9,35 @@ class MockAIProvider(AIProvider):
         if json_schema:
             props = json_schema.get("properties", {})
             if "subtasks" in props:
+                if "AIPlanningSuggestion" in json.dumps(json_schema):
+                    # Phase 48 progressive (nested) breakdown contract:
+                    # deterministic 2-level sample within max-3-level bounds.
+                    return json.dumps({
+                        "subtasks": [
+                            {"title": "Backend payment integration", "description": "Auto generated", "priority": "HIGH",
+                             "suggestion_id": "s1", "estimated_points": 5,
+                             "children": [
+                                 {"title": "Payment provider configuration", "description": "Auto generated", "priority": "MEDIUM",
+                                  "suggestion_id": "s1a", "estimated_points": 2, "children": []},
+                                 {"title": "Payment service", "description": "Auto generated 2", "priority": "MEDIUM",
+                                  "suggestion_id": "s1b", "estimated_points": 3, "children": []},
+                                 {"title": "Error handling", "description": "", "priority": "LOW",
+                                  "suggestion_id": "s1c", "estimated_points": 1, "children": []},
+                             ]},
+                            {"title": "Frontend checkout", "description": "Auto generated", "priority": "MEDIUM",
+                             "suggestion_id": "s2", "estimated_points": 3,
+                             "children": [
+                                 {"title": "Checkout UI", "description": "", "priority": "MEDIUM",
+                                  "suggestion_id": "s2a", "estimated_points": 2, "children": []},
+                                 {"title": "Payment state handling", "description": "", "priority": "LOW",
+                                  "suggestion_id": "s2b", "estimated_points": 1, "children": []},
+                             ]},
+                            {"title": "Webhook handling", "description": "", "priority": "HIGH",
+                             "suggestion_id": "s3", "estimated_points": 2, "children": []},
+                            {"title": "Testing", "description": "", "priority": "MEDIUM",
+                             "suggestion_id": "s4", "estimated_points": 2, "children": []},
+                        ]
+                    })
                 return json.dumps({
                     "subtasks": [
                         {"title": "Subtask 1", "description": "Auto generated", "priority": "MEDIUM", "labels": ["ai"]},

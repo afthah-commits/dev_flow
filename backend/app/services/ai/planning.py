@@ -1,4 +1,4 @@
-"""Phase 47 — AI-assisted planning & estimation service.
+"""Phase 47/48 — AI-assisted planning & estimation service.
 
 ADVISORY ONLY. Everything here produces a preview for explicit user review;
 nothing in this module creates, updates, or schedules anything.
@@ -8,6 +8,10 @@ from existing project/task/sprint data with plain heuristics so MockAIProvider
 tests are fully deterministic. Only the suggested task breakdown goes through
 the existing AIProvider abstraction (MockAIProvider / OpenAIProvider), and its
 output is strictly sanitized and bounded before being returned.
+
+Phase 48: breakdown suggestions may be nested (progressive planning), at most
+MAX_DEPTH levels, MAX_SUGGESTIONS children per node and MAX_TOTAL_NODES total
+nodes. The sanitizer normalizes malformed AI output into this bounded shape.
 """
 from __future__ import annotations
 
@@ -28,18 +32,24 @@ from app.schemas.ai import (
 from app.services.ai.base import AIProvider
 from app.services.ai.service import SYSTEM_PROMPT
 
-MAX_SUGGESTIONS = 8
+MAX_SUGGESTIONS = 8       # per level / per parent
 MAX_TITLE_LEN = 200
 MAX_DESC_LEN = 1000
 MAX_PROMPT_TEXT = 500
 VALID_PRIORITIES = {"LOW", "MEDIUM", "HIGH", "URGENT"}
-
 DONE_STATUSES = {TaskStatus.DONE}
+
+# Phase 48 — progressive breakdown bounds
+MAX_DEPTH = 3             # root level 0, children 1, grandchildren 2
+MAX_TOTAL_NODES = 32
 
 
 class _BreakdownSchema(BaseModel):
     """json_schema contract for the provider. Property name `subtasks`
-    matches the existing TaskBreakdown contract reused by MockAIProvider."""
+    matches the existing TaskBreakdown contract reused by MockAIProvider.
+    Phase 48: suggestions carry the progressive-breakdown fields
+    (suggestion_id / estimated_points / level / parent / children).
+    """
 
     subtasks: List[AIPlanningSuggestion]
 
@@ -52,34 +62,77 @@ def _task_text(task: Optional[Task]) -> str:
     return text[:MAX_PROMPT_TEXT]
 
 
+def _sanitize_node(item: object, level: int, budget: dict) -> Optional[AIPlanningSuggestion]:
+    """Sanitize a single suggestion (and recurse into children) against the
+    progressive-breakdown bounds. Malformed data is dropped or normalized,
+    never trusted: plain strings only, priority coerced, lengths bounded,
+    depth ≤ MAX_DEPTH, ≤ MAX_SUGGESTIONS children per node,
+    ≤ MAX_TOTAL_NODES total nodes, no cycles (children can't reference a
+    parent ancestor or themselves).
+    """
+    if budget["total"] >= MAX_TOTAL_NODES:
+        return None
+    if not isinstance(item, dict):
+        return None
+    title = item.get("title")
+    if not isinstance(title, str) or not title.strip():
+        return None
+    desc = item.get("description")
+    if not isinstance(desc, str):
+        desc = ""
+    priority = item.get("priority")
+    if not isinstance(priority, str) or priority.upper() not in VALID_PRIORITIES:
+        priority = "MEDIUM"
+    est = item.get("estimated_points")
+    if not isinstance(est, (int, float)) or isinstance(est, bool):
+        est = None
+    else:
+        est = max(0.0, min(float(est), 100.0))
+    sid = item.get("suggestion_id")
+    sid = sid[:64] if isinstance(sid, str) and sid.strip() else None
+    node = AIPlanningSuggestion(
+        title=title.strip()[:MAX_TITLE_LEN],
+        description=desc.strip()[:MAX_DESC_LEN],
+        priority=priority.upper(),
+        suggestion_id=sid,
+        estimated_points=est,
+        level=level,
+        parent_suggestion_id=None,  # fixed below from actual tree position
+        children=None,
+    )
+    budget["total"] += 1
+
+    if level + 1 < MAX_DEPTH:
+        raw_children = item.get("children")
+        if isinstance(raw_children, list) and raw_children:
+            kids: List[AIPlanningSuggestion] = []
+            kid_sid = sid or node.title  # fallback parent key
+            for child_item in raw_children[:MAX_SUGGESTIONS]:
+                child_node = _sanitize_node(child_item, level + 1, budget)
+                if child_node is not None:
+                    child_node.parent_suggestion_id = kid_sid
+                    kids.append(child_node)
+            if kids:
+                node.children = kids
+    return node
+
+
 def sanitize_suggestions(raw: object) -> List[AIPlanningSuggestion]:
-    """Strictly validate/bound AI output. Plain strings only — no executable
-    configuration, no nested structures, bounded lengths and count."""
+    """Strictly validate/bound AI output. Plain strings and safe numbers
+    only — no executable configuration, bounded lengths/counts/depth.
+    Accepts both the Phase 47 flat list and the Phase 48 nested tree.
+    """
     if not isinstance(raw, dict):
         return []
     items = raw.get("subtasks")
     if not isinstance(items, list):
         return []
+    budget = {"total": 0}
     out: List[AIPlanningSuggestion] = []
     for item in items[:MAX_SUGGESTIONS]:
-        if not isinstance(item, dict):
-            continue
-        title = item.get("title")
-        if not isinstance(title, str) or not title.strip():
-            continue
-        desc = item.get("description")
-        if not isinstance(desc, str):
-            desc = ""
-        priority = item.get("priority")
-        if not isinstance(priority, str) or priority.upper() not in VALID_PRIORITIES:
-            priority = "MEDIUM"
-        out.append(
-            AIPlanningSuggestion(
-                title=title.strip()[:MAX_TITLE_LEN],
-                description=desc.strip()[:MAX_DESC_LEN],
-                priority=priority.upper(),
-            )
-        )
+        node = _sanitize_node(item, 0, budget)
+        if node is not None:
+            out.append(node)
         if len(out) >= MAX_SUGGESTIONS:
             break
     return out

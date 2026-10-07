@@ -366,8 +366,9 @@ def _frontend_api_urls():
 
 def test_frontend_analytics_time_urls_exist_in_backend():
     from collections import Counter
+    from tests.conftest import iter_flattened_routes  # FastAPI>=0.135 nested routers
     backend = [(getattr(r, "path", ""), tuple(sorted(getattr(r, "methods", []) or [])))
-               for r in app.routes if hasattr(r, "methods")]
+               for r in iter_flattened_routes() if hasattr(r, "methods")]
     assert not [p for p, c in Counter(backend).items() if c > 1], \
         "duplicate backend routes detected"
     paths = {p for p, _ in backend}
@@ -392,7 +393,8 @@ def test_frontend_analytics_time_urls_exist_in_backend():
 
 def test_github_analytics_route_registered_exactly_once():
     from collections import Counter
+    from tests.conftest import iter_flattened_routes  # FastAPI>=0.135 nested routers
     matches = [(r.path, tuple(sorted(r.methods)))
-               for r in app.routes
+               for r in iter_flattened_routes()
                if getattr(r, "path", "") == "/api/v1/analytics/projects/{project_id}/github"]
     assert len(matches) == 1

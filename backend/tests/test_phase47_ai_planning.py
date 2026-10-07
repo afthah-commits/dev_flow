@@ -242,9 +242,15 @@ def test_planning_prompt_injection_resisted(client, db):
     # No PWNED tasks created, no roles escalated, no sql executed
     assert db.query(Task).filter(Task.project_id == proj.id).count() == 1
     assert "PWNED" not in blob
-    # Suggestions remain plain bounded strings (no executable config)
-    for s in data["suggested_breakdown"]:
-        assert set(s.keys()) <= {"title", "description", "priority"}
+    # Suggestions remain plain bounded strings (no executable config).
+    # Phase 48 adds safe progressive-breakdown fields to the contract.
+    SAFE_KEYS = {"title", "description", "priority", "suggestion_id",
+                 "estimated_points", "level", "parent_suggestion_id", "children"}
+    def _walk(nodes):
+        for s in nodes or []:
+            assert set(s.keys()) <= SAFE_KEYS
+            _walk(s.get("children"))
+    _walk(data["suggested_breakdown"])
 
 
 # ---------------------------------------------------------------------------
