@@ -1,3 +1,5 @@
+import warnings
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.core.config import settings
@@ -19,6 +21,17 @@ app = FastAPI(
     title=settings.PROJECT_NAME,
     openapi_url=f"{settings.API_V1_STR}/openapi.json"
 )
+
+# Production configuration guard (Phase 50): the well-known default signing
+# key must never protect real deployments. Development keeps working, but any
+# deployment that forgets to set SECRET_KEY gets a loud, greppable warning.
+_DEFAULT_SECRET_MARKERS = ("your-super-secret",)
+if any(marker in settings.SECRET_KEY for marker in _DEFAULT_SECRET_MARKERS):
+    warnings.warn(
+        "DevFlow is using the default SECRET_KEY. "
+        "Set a strong SECRET_KEY environment variable before deploying to production.",
+        stacklevel=1,
+    )
 
 from app.core.exceptions import add_exception_handlers
 from app.core.middleware import CorrelationIdMiddleware

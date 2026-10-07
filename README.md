@@ -87,3 +87,15 @@ Phase 21 transforms DevFlow into a production-oriented deployment workspace, tra
 
 ## Phase 30: Visual Workflow Studio & Advanced Form Builder
 Phase 30 upgrades the structured Workflow Builder into a professional visual Workflow Studio at `/workflows/:workflowId/studio`: an infinite canvas (pan/zoom/grid, drag-and-drop states, visual transition links, minimap), a right-side configuration panel for states, transitions, safe conditions, ordered actions, and approval rules, plus workflow validation (PASS/WARNING/ERROR publish gate), a dry-run simulator, immutable DRAFT/PUBLISHED/ARCHIVED versioning, execution history with step-through previews, an advanced drag-and-drop form builder with conditional fields, realtime workflow events, and an advisory AI design assistant that can only produce drafts for explicit human review. See [docs/visual-workflow-studio.md](docs/visual-workflow-studio.md).
+
+## Final Release Status (Phase 50)
+
+DevFlow is feature-complete for this roadmap. Final verification status:
+
+- **Backend**: FastAPI + SQLAlchemy + Alembic (single head `b2c3d4e5f6a7`; fresh databases migrate cleanly). Full pytest suite passes with 0 failures.
+- **Frontend**: React + Vite + TypeScript; vitest suite, `tsc --noEmit`, and production build all pass.
+- **Security model**: JWT auth, organization-scoped multi-tenancy with server-side RBAC (incl. custom roles), user-scoped dashboard layouts, org-scoped search/knowledge, restricted client portal, API keys, and audit logging of sensitive operations.
+- **AI safety model**: the AI layer is advisory-only and deterministic under `MockAIProvider`. AI output is untrusted input, strictly sanitized and bounded (max 3 breakdown levels, 8 suggestions per level, 32 nodes), never mutates data by itself, and every apply flow re-validates permissions server-side inside one transaction.
+- **Production configuration**: copy `.env.example` and set a strong `SECRET_KEY` (the app warns loudly if the development default is used), `DATABASE_URL`, `FRONTEND_URL`/`ALLOWED_ORIGINS`, and provider keys. See [docs/production-environment.md](docs/production-environment.md) and [docs/production-deployment.md](docs/production-deployment.md).
+
+Run `python -m pytest tests -q` in `backend/` and `npm run test && npx tsc --noEmit && npm run build` in `frontend/` to reproduce the final verification. See [PHASE50_FINAL_VERIFICATION_REPORT.md](PHASE50_FINAL_VERIFICATION_REPORT.md) for the complete final report.

@@ -29,3 +29,8 @@ secrets/
 # Local SQLite databases (generated; reprovision with `alembic upgrade head`)
 backend/*.db
 *.sqlite3
+
+# Root-level one-off script outputs and stray databases (Phase 50 cleanup)
+/*.txt
+/*.log
+/*.db
