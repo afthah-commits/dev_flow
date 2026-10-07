@@ -244,20 +244,26 @@ def _validate_suggestion_tree(suggestions):
             if priority not in _APPLY_PRIORITIES:
                 priority = "MEDIUM"
             est = s.estimated_points
-            if not isinstance(est, (int, float)) or isinstance(est, bool):
-                est = None
-            else:
-                est = max(0.0, min(float(est), 100.0))
+            if est is not None:
+                # Phase 49: user-edited values are validated, not silently
+                # clamped — invalid points are rejected outright.
+                if not isinstance(est, (int, float)) or isinstance(est, bool) or est < 0 or est > 100:
+                    raise _ValidationError("Invalid estimated points (must be 0-100)")
+                est = float(est)
             key = (s.suggestion_id or f"idx-{state['count']}")
             if key in known_keys:
                 raise _ValidationError("Duplicate suggestion id in hierarchy")
             known_keys.add(key)
+            if len(title) > MAX_APPLY_TITLE_LEN:
+                raise _ValidationError(f"Suggestion title too long (max {MAX_APPLY_TITLE_LEN})")
+            if len((s.description or "").strip()) > MAX_APPLY_DESC_LEN:
+                raise _ValidationError(f"Suggestion description too long (max {MAX_APPLY_DESC_LEN})")
             state["count"] += 1
             children = _clean(s.children or [], level + 1, key)
             out.append({
                 "key": key,
-                "title": title[:MAX_APPLY_TITLE_LEN],
-                "description": (s.description or "").strip()[:MAX_APPLY_DESC_LEN],
+                "title": title,
+                "description": (s.description or "").strip(),
                 "priority": priority,
                 "level": level,
                 "estimated_points": est,
@@ -311,6 +317,7 @@ def apply_planning_suggestions(
                     title=item["title"],
                     description=item["description"] or None,
                     priority=TaskPriority[item["priority"]],
+                    estimate_points=item.get("estimated_points"),
                     creator_id=current_user.id,
                     task_key=f"{project.key}-{seq}" if project.key else f"PROJ-{seq}",
                 )

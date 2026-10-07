@@ -1,4 +1,4 @@
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 from typing import Optional, List
 from datetime import datetime
 from uuid import UUID
@@ -84,6 +84,16 @@ class AIPlanningSuggestion(BaseModel):
     level: int = 0
     parent_suggestion_id: Optional[str] = None
     children: Optional[List["AIPlanningSuggestion"]] = None
+
+    @field_validator("estimated_points", mode="before")
+    @classmethod
+    def _reject_boolean_points(cls, v):
+        # Phase 49: pydantic lax mode would coerce booleans to numbers;
+        # user/AI supplied booleans are invalid input, reject them before
+        # coercion runs.
+        if isinstance(v, bool):
+            raise ValueError("estimated_points must be a number, not a boolean")
+        return v
 
 class AIPlanningCapacity(BaseModel):
     status: str  # OK | OVER_CAPACITY | INSUFFICIENT_DATA

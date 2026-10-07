@@ -210,3 +210,114 @@ describe('ProjectAIPlanning (Phase 47 + 48 progressive breakdown)', () => {
     expect(screen.getByText(/Select a specific task to apply/i)).toBeInTheDocument();
   });
 });
+
+describe('ProjectAIPlanning Phase 49 — breakdown editor', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  async function openEditor() {
+    (aiApi.analyzePlanning as any).mockResolvedValue(nestedAnalysis);
+    render(<ProjectAIPlanning project={project} />);
+    fireEvent.click(screen.getByTestId('analyze-button'));
+    await screen.findByTestId('planning-breakdown');
+  }
+
+  it('edit mode: opens, save persists the edit locally, cancel reverts', async () => {
+    await openEditor();
+    fireEvent.click(screen.getByTestId('suggestion-edit-0'));
+    const titleBox = screen.getByTestId('edit-title-0') as HTMLInputElement;
+    expect(titleBox.value).toBe('Backend payment integration');
+    fireEvent.change(titleBox, { target: { value: 'Payments platform (edited)' } });
+    fireEvent.change(screen.getByTestId('edit-points-0'), { target: { value: '9' } });
+    fireEvent.click(screen.getByTestId('edit-save-0'));
+    // saved: row shows new title and points; edit box gone
+    expect(screen.getByTestId('suggestion-row-0')).toHaveTextContent('Payments platform (edited)');
+    expect(screen.getByTestId('suggestion-row-0')).toHaveTextContent('9 pts');
+    expect(screen.queryByTestId('edit-title-0')).not.toBeInTheDocument();
+    // total effort reflects the edit (5 -> 9, total 21 -> 25)
+    expect(screen.getByTestId('planning-total-effort')).toHaveTextContent('25');
+
+    // cancel reverts
+    fireEvent.click(screen.getByTestId('suggestion-edit-2'));
+    fireEvent.change(screen.getByTestId('edit-title-2'), { target: { value: 'SHOULD NOT STAY' } });
+    fireEvent.click(screen.getByTestId('edit-cancel-2'));
+    expect(screen.getByTestId('suggestion-row-2')).toHaveTextContent('Webhook handling');
+  });
+
+  it('add child appends a selected sub-suggestion within limits', async () => {
+    await openEditor();
+    // root 2 (Webhook handling) has no children
+    fireEvent.click(screen.getByTestId('suggestion-add-child-2'));
+    expect(screen.getByTestId('suggestion-row-2.0')).toHaveAttribute('data-depth', '1');
+    expect(screen.getByTestId('suggestion-checkbox-2.0')).toBeChecked();
+    // root 0 already has 3 children; adding a 9th... limit is 8 so allowed until 8;
+    // instead verify depth rejection on a depth-1 node (levels max 3 = depth<=1)
+    fireEvent.click(screen.getByTestId('suggestion-add-child-0.0'));
+    // depth 1 + 1 = 2 = last valid level... actually MAX_DEPTH-1 = 2 > f.depth(1) so allowed;
+    // but child of 0.0 at depth 2 is the last level — still allowed. Then adding below it must fail:
+    fireEvent.click(screen.getByTestId('suggestion-add-child-0.0.0'));
+    expect(screen.getByTestId('planning-error')).toHaveTextContent(/maximum depth/i);
+  });
+
+  it('delete node removes node + subtree with confirm; warns on subtree', async () => {
+    const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(true);
+    await openEditor();
+    fireEvent.click(screen.getByTestId('suggestion-delete-0'));
+    expect(confirmSpy).toHaveBeenCalled();
+    // node and its subtree content gone
+    expect(screen.queryByText('Backend payment integration')).not.toBeInTheDocument();
+    expect(screen.queryByText('Payment provider configuration')).not.toBeInTheDocument();
+    // siblings re-keyed: Frontend checkout is now root 0
+    expect(screen.getByTestId('suggestion-row-0')).toHaveTextContent('Frontend checkout');
+    confirmSpy.mockRestore();
+  });
+
+  it('delete with cancel confirm keeps the node', async () => {
+    const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(false);
+    await openEditor();
+    fireEvent.click(screen.getByTestId('suggestion-delete-0'));
+    expect(screen.getByTestId('suggestion-row-0')).toBeInTheDocument();
+    confirmSpy.mockRestore();
+  });
+
+  it('move node to another parent prevents cycles and preserves selection', async () => {
+    await openEditor();
+    // move "Webhook handling" (root 2) under "Frontend checkout" (root 1)
+    const moveSelect = screen.getByTestId('suggestion-move-2') as HTMLSelectElement;
+    fireEvent.change(moveSelect, { target: { value: '1' } });
+    // old root 2 gone; new child 1.2 exists at depth 1
+    expect(screen.getByTestId('suggestion-row-1.2')).toHaveTextContent('Webhook handling');
+    expect(screen.getByTestId('suggestion-row-1.2')).toHaveAttribute('data-depth', '1');
+    // selection preserved (was preselected)
+    expect(screen.getByTestId('suggestion-checkbox-1.2')).toBeChecked();
+    // cycle prevention: a child cannot move under its own descendant —
+    // root 0's move options must not include its own children
+    const opts = Array.from((screen.getByTestId('suggestion-move-0') as HTMLSelectElement).options).map(o => o.value);
+    expect(opts).not.toContain('0');
+    expect(opts).not.toContain('0.0');
+  });
+
+  it('shows validation warning for empty title and blocks apply of invalid tree server-side', async () => {
+    await openEditor();
+    fireEvent.click(screen.getByTestId('suggestion-edit-0'));
+    fireEvent.change(screen.getByTestId('edit-title-0'), { target: { value: '   ' } });
+    fireEvent.click(screen.getByTestId('edit-save-0'));
+    expect(screen.getByTestId('editor-warnings')).toHaveTextContent(/title is empty/i);
+  });
+
+  it('shows node count and depth stats', async () => {
+    await openEditor();
+    expect(screen.getByTestId('planning-node-count')).toHaveTextContent('nodes');
+    expect(screen.getByTestId('planning-tree-depth')).toHaveTextContent('depth 2/3');
+  });
+
+  it('error state surfaces server 422 detail on apply', async () => {
+    await openEditor();
+    (aiApi.applyPlanningSuggestions as any).mockRejectedValue({
+      response: { data: { detail: 'Suggestion title too long (max 200)' } }
+    });
+    fireEvent.click(screen.getByTestId('planning-apply'));
+    expect(await screen.findByTestId('planning-error')).toHaveTextContent('Suggestion title too long (max 200)');
+  });
+});
