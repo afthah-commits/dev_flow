@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../hooks/useAuth';
 import { useOrganization } from '../../contexts/OrganizationContext';
 import { useRealtimeEvent } from '../../hooks/useRealtime';
+import { API_BASE } from '../../lib/axios';
 
 interface Job {
   id: string;
@@ -25,13 +26,13 @@ export const JobCenter: React.FC = () => {
     if (!token || !currentOrg) return;
     setLoading(true);
     try {
-      const url = new URL(`${import.meta.env.VITE_API_URL || 'http://localhost:8000/api/v1'}/jobs`);
+      const url = new URL(`${API_BASE}/jobs`);
       const res = await fetch(url.toString(), {
         headers: { 'Authorization': `Bearer ${token}`, 'X-Organization-Id': currentOrg.id }
       });
       if (res.ok) setJobs(await res.json());
 
-      const statsRes = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:8000/api/v1'}/jobs/stats`, {
+      const statsRes = await fetch(`${API_BASE}/jobs/stats`, {
         headers: { 'Authorization': `Bearer ${token}`, 'X-Organization-Id': currentOrg.id }
       });
       if (statsRes.ok) setStats(await statsRes.json());

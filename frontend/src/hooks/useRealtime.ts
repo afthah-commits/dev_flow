@@ -20,7 +20,7 @@ class RealtimeService {
     this.orgId = orgId;
     this.intentionalClose = false;
 
-    const baseUrl = import.meta.env.VITE_WS_URL || "ws://localhost:8000/api/v1/realtime/ws";
+    const baseUrl = import.meta.env.VITE_WS_URL || (import.meta.env.PROD ? `${window.location.origin.replace(/^http/, "ws")}/api/v1/realtime/ws` : "ws://localhost:8000/api/v1/realtime/ws");
     const wsUrl = `${baseUrl}?token=${token}&org_id=${orgId}`;
     this.ws = new WebSocket(wsUrl);
 
