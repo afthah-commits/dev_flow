@@ -25,7 +25,7 @@ def upgrade() -> None:
     sa.Column('organization_id', sa.Uuid(), nullable=False),
     sa.Column('name', sa.String(), nullable=False),
     sa.Column('description', sa.Text(), nullable=True),
-    sa.Column('is_archived', sa.Boolean(), server_default=sa.text('0'), nullable=False),
+    sa.Column('is_archived', sa.Boolean(), server_default=sa.text('false'), nullable=False),
     sa.Column('created_by_id', sa.Uuid(), nullable=True),
     sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.text('(CURRENT_TIMESTAMP)'), nullable=True),
     sa.Column('updated_at', sa.DateTime(timezone=True), nullable=True),

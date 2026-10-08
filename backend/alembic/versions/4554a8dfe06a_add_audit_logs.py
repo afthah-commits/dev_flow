@@ -52,11 +52,11 @@ def upgrade() -> None:
         batch_op.create_index(batch_op.f('ix_audit_events_team_id'), ['team_id'], unique=False)
 
     with op.batch_alter_table('notification_preferences', schema=None) as batch_op:
-        batch_op.add_column(sa.Column('task_assignments', sa.Boolean(), server_default="1", nullable=False))
-        batch_op.add_column(sa.Column('sprint_events', sa.Boolean(), server_default="1", nullable=False))
-        batch_op.add_column(sa.Column('milestone_events', sa.Boolean(), server_default="1", nullable=False))
-        batch_op.add_column(sa.Column('security_events', sa.Boolean(), server_default="1", nullable=False))
-        batch_op.add_column(sa.Column('digest_notifications', sa.Boolean(), server_default="1", nullable=False))
+        batch_op.add_column(sa.Column('task_assignments', sa.Boolean(), server_default='true', nullable=False))
+        batch_op.add_column(sa.Column('sprint_events', sa.Boolean(), server_default='true', nullable=False))
+        batch_op.add_column(sa.Column('milestone_events', sa.Boolean(), server_default='true', nullable=False))
+        batch_op.add_column(sa.Column('security_events', sa.Boolean(), server_default='true', nullable=False))
+        batch_op.add_column(sa.Column('digest_notifications', sa.Boolean(), server_default='true', nullable=False))
 
     with op.batch_alter_table('notifications', schema=None) as batch_op:
         batch_op.add_column(sa.Column('priority', sa.String(), server_default="NORMAL", nullable=False))

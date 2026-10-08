@@ -116,7 +116,7 @@ def upgrade() -> None:
         batch_op.add_column(sa.Column('estimate_hours', sa.Float(), nullable=True))
         batch_op.add_column(sa.Column('actual_hours', sa.Float(), nullable=True))
         batch_op.add_column(sa.Column('position', sa.Float(), server_default='0.0', nullable=False))
-        batch_op.add_column(sa.Column('is_blocked', sa.Boolean(), server_default='0', nullable=False))
+        batch_op.add_column(sa.Column('is_blocked', sa.Boolean(), server_default='false', nullable=False))
         batch_op.add_column(sa.Column('recurring_config', sa.JSON(), nullable=True))
         batch_op.create_index(batch_op.f('ix_tasks_parent_id'), ['parent_id'], unique=False)
         batch_op.create_index(batch_op.f('ix_tasks_position'), ['position'], unique=False)

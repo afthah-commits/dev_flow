@@ -171,7 +171,7 @@ def upgrade() -> None:
                existing_nullable=False)
 
     with op.batch_alter_table('audit_events', schema=None) as batch_op:
-        batch_op.add_column(sa.Column('client_visible', sa.Boolean(), server_default='0', nullable=False))
+        batch_op.add_column(sa.Column('client_visible', sa.Boolean(), server_default='false', nullable=False))
 
     with op.batch_alter_table('comment_reactions', schema=None) as batch_op:
         batch_op.alter_column('id',
@@ -188,7 +188,7 @@ def upgrade() -> None:
                existing_nullable=False)
 
     with op.batch_alter_table('comments', schema=None) as batch_op:
-        batch_op.add_column(sa.Column('client_visible', sa.Boolean(), server_default='0', nullable=False))
+        batch_op.add_column(sa.Column('client_visible', sa.Boolean(), server_default='false', nullable=False))
         batch_op.alter_column('id',
                existing_type=sa.NUMERIC(),
                type_=sa.UUID(),
@@ -229,7 +229,7 @@ def upgrade() -> None:
                existing_nullable=False)
 
     with op.batch_alter_table('tasks', schema=None) as batch_op:
-        batch_op.add_column(sa.Column('client_visible', sa.Boolean(), server_default='0', nullable=False))
+        batch_op.add_column(sa.Column('client_visible', sa.Boolean(), server_default='false', nullable=False))
 
     # ### end Alembic commands ###
 
