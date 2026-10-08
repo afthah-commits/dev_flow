@@ -1,0 +1,24 @@
+services:
+  - type: web
+    name: devflow-backend
+    runtime: docker
+    dockerfilePath: ./Dockerfile.backend
+    # Build context is the repo root (Dockerfile copies backend/ and backend/requirements.txt)
+    dockerContext: .
+    plan: free  # upgrade to starter/standard for production load
+    healthCheckPath: /health
+    envVars:
+      - key: DATABASE_URL
+        sync: false   # Set manually in Render dashboard — never commit this value
+      - key: SECRET_KEY
+        sync: false   # Set manually in Render dashboard — never commit this value
+      - key: ENVIRONMENT
+        value: production
+      - key: ALLOWED_ORIGINS
+        sync: false   # Set to your frontend URL after frontend is deployed
+      - key: AI_PROVIDER
+        value: mock
+      - key: JOB_SCHEDULER_ENABLED
+        value: "false"
+      - key: PORT
+        value: "8000"
