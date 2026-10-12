@@ -111,6 +111,10 @@ export const aiApi = {
   summarizeKnowledgeDocument: async (documentId: string) => {
     const res = await api.post(`/ai/knowledge/documents/${documentId}/summary`);
     return res.data;
+  },
+  getStatus: async (): Promise<{ provider: string; configured: boolean; model: string }> => {
+    const res = await api.get('/ai/status');
+    return res.data;
   }
 };
 

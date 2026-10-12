@@ -39,8 +39,15 @@ def create_project(
         slug = f"{base_slug}-{counter}"
         counter += 1
 
+    project_data = project_in.model_dump()
+    if not project_data.get("key"):
+        clean_key = re.sub(r'[^A-Za-z0-9]', '', project_in.name.upper())[:4]
+        project_data["key"] = clean_key if clean_key else "PROJ"
+    else:
+        project_data["key"] = project_data["key"].upper()
+
     project = Project(
-        **project_in.model_dump(),
+        **project_data,
         owner_id=current_user.id,
         organization_id=org_id,
         slug=slug

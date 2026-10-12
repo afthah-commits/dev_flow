@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional
 from uuid import UUID
 import json
 
@@ -19,8 +19,10 @@ from app.schemas.ai import (
 )
 from app.schemas.workflow import AIWorkflowSuggestion
 from app.services.ai.service import get_ai_provider, SYSTEM_PROMPT
-from app.services.ai.context import build_project_context
+from app.services.ai.context import build_project_context, build_organization_context
+from app.services.ai.assistant import process_project_assistant_request
 from app.services.ai.planning import build_planning_analysis
+from app.core.config import settings
 from app.core.rate_limit import rate_limit
 
 # AI endpoints are computationally expensive; cap per-IP request volume.
@@ -28,6 +30,30 @@ from app.core.rate_limit import rate_limit
 AI_RATE_LIMIT = (100, 60)
 
 router = APIRouter()
+
+@router.get("/status")
+def get_ai_status(
+    *,
+    current_user: User = Depends(deps.get_current_user),
+) -> Any:
+    provider_name = settings.AI_PROVIDER.lower()
+    configured = False
+    model_name = ""
+    if provider_name == "gemini":
+        configured = bool(settings.GEMINI_API_KEY)
+        model_name = settings.GEMINI_MODEL
+    elif provider_name == "openai":
+        configured = bool(settings.OPENAI_API_KEY)
+        model_name = "gpt-4o"
+    else:
+        configured = True
+        model_name = "mock"
+    
+    return {
+        "provider": provider_name,
+        "configured": configured,
+        "model": model_name,
+    }
 
 def _get_conversation(db: Session, conv_id: UUID, user_id: UUID) -> AIConversation:
     conv = db.query(AIConversation).filter(AIConversation.id == conv_id, AIConversation.user_id == user_id).first()
@@ -98,6 +124,7 @@ async def send_message(
     current_user: User = Depends(deps.get_current_user),
     conversation_id: UUID,
     request: AIChatRequest,
+    org_id: Optional[UUID] = Depends(deps.get_current_organization_id),
     _rl: None = Depends(rate_limit(*AI_RATE_LIMIT))
 ) -> Any:
     conv = _get_conversation(db, conversation_id, current_user.id)
@@ -107,30 +134,62 @@ async def send_message(
     db.add(user_msg)
     db.commit()
     
-    # Build context
-    context_str = ""
-    if conv.project_id:
-        context_str = await build_project_context(db, conv.project_id, current_user.id)
+    # 1. Check for natural language project management intents (task creation, overdue inspection, etc.)
+    assistant_action = await process_project_assistant_request(
+        db=db,
+        conversation=conv,
+        current_user=current_user,
+        message=request.message,
+        org_id=org_id
+    )
+
+    if assistant_action:
+        reply = assistant_action["reply"]
+        action_data = assistant_action
+    else:
+        # 2. General advisory & context-aware assistant chat
+        context_str = ""
+        if conv.project_id:
+            context_str = await build_project_context(db, conv.project_id, current_user.id)
+        elif org_id:
+            context_str = build_organization_context(db, org_id, current_user.id)
+            
+        full_prompt = f"{SYSTEM_PROMPT}\n\n{context_str}"
         
-    full_prompt = f"{SYSTEM_PROMPT}\\n\\n{context_str}"
-    
-    # Get history (last 10 messages)
-    history = db.query(AIMessage).filter(AIMessage.conversation_id == conv.id).order_by(AIMessage.created_at.asc()).limit(10).all()
-    api_messages = [{"role": m.role, "content": m.content} for m in history]
-    
-    # Call AI
-    provider = get_ai_provider()
-    try:
-        reply = await provider.chat(messages=api_messages, system_prompt=full_prompt)
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        # Get history (last 10 messages)
+        history = db.query(AIMessage).filter(AIMessage.conversation_id == conv.id).order_by(AIMessage.created_at.asc()).limit(10).all()
+        api_messages = [{"role": m.role, "content": m.content} for m in history]
         
-    ai_msg = AIMessage(conversation_id=conv.id, role="assistant", content=reply)
+        provider = get_ai_provider()
+        action_data = None
+        try:
+            reply = await provider.chat(messages=api_messages, system_prompt=full_prompt)
+        except HTTPException as e:
+            if e.status_code == 500 and "not configured" in e.detail.lower():
+                reply = (
+                    "⚠️ **Gemini AI Provider Notice**\n\n"
+                    "The Gemini API key is not configured in the backend environment. "
+                    "To enable live Gemini responses, please set `GEMINI_API_KEY` in your Render service environment variables.\n\n"
+                    "In the meantime, I can still create tasks, show overdue tasks, and summarize your project!"
+                )
+                action_data = {"type": "provider_notice", "detail": e.detail}
+            else:
+                raise e
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=str(e))
+        
+    ai_msg = AIMessage(conversation_id=conversation_id, role="assistant", content=reply)
     db.add(ai_msg)
     db.commit()
     db.refresh(ai_msg)
     
-    return ai_msg
+    return AIMessageResponse(
+        id=ai_msg.id,
+        role=ai_msg.role,
+        content=ai_msg.content,
+        created_at=ai_msg.created_at,
+        action_data=action_data
+    )
 
 # ---------------------------------------------------------------------------
 # Phase 47 — AI-assisted planning & estimation (ADVISORY ONLY)

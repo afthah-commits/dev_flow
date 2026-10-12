@@ -1,8 +1,27 @@
+export interface AIMessageActionData {
+  type: string;
+  tasks?: Array<{
+    id?: string;
+    task_key?: string;
+    title: string;
+    description?: string;
+    priority?: string;
+    due_date?: string | null;
+    project_id?: string;
+    project_name?: string;
+    points?: number;
+  }>;
+  project_id?: string;
+  epic_title?: string;
+  [key: string]: any;
+}
+
 export interface AIMessage {
   id: string;
   role: 'user' | 'assistant' | 'system';
   content: string;
   created_at: string;
+  action_data?: AIMessageActionData;
 }
 
 export interface AIConversation {

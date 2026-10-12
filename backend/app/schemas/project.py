@@ -8,6 +8,7 @@ from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 class ProjectBase(BaseModel):
     name: str = Field(..., min_length=1, max_length=100)
+    key: Optional[str] = None
     description: Optional[str] = None
     status: ProjectStatus = ProjectStatus.PLANNING
     priority: ProjectPriority = ProjectPriority.MEDIUM

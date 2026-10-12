@@ -1,5 +1,5 @@
 from pydantic import BaseModel, Field, field_validator
-from typing import Optional, List
+from typing import Optional, List, Dict, Any
 from datetime import datetime
 from uuid import UUID
 
@@ -13,6 +13,7 @@ class AIMessageCreate(AIMessageBase):
 class AIMessageResponse(AIMessageBase):
     id: UUID
     created_at: datetime
+    action_data: Optional[Dict[str, Any]] = None
     class Config:
         from_attributes = True
 
