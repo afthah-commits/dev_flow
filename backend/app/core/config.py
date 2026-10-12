@@ -27,6 +27,8 @@ class Settings(BaseSettings):
     AI_API_KEY: Optional[str] = None
     AI_MODEL: Optional[str] = None
     AI_BASE_URL: Optional[str] = None
+    GEMINI_API_KEY: Optional[str] = None
+    GEMINI_MODEL: str = "gemini-1.5-flash"
 
     JOB_SCHEDULER_ENABLED: bool = False
     JOB_POLL_INTERVAL_SECONDS: int = 5

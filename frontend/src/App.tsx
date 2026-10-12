@@ -1,6 +1,6 @@
 import CollaborationAnalytics from './pages/CollaborationAnalytics';
 import React from "react";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider } from "./hooks/useAuth";
 import { OrganizationProvider } from "./contexts/OrganizationContext";
 import AuthLayout from "./layouts/AuthLayout";
@@ -90,6 +90,13 @@ export default function App() {
               <Route path="/dashboards" element={<Dashboards />} />
               <Route path="/ai" element={<AICommandCenter />} />
               <Route path="/reports" element={<Reports />} />
+              <Route path="/daily-reports" element={<DailyReports />} />
+              <Route path="/daily-reports/new" element={<DailyReportForm />} />
+              <Route path="/daily-reports/:id" element={<DailyReportDetails />} />
+              <Route path="/daily-reports/:id/edit" element={<DailyReportForm />} />
+              <Route path="/daily-reports/team" element={<TeamDailyReports />} />
+              <Route path="/daily-reports/weekly" element={<WeeklyDailyReports />} />
+              <Route path="/daily-reports/blockers" element={<BlockerDailyReports />} />
               <Route path="/admin/compliance" element={<AdminCompliance />} />
               <Route path="/settings/privacy" element={<PrivacySettings />} />
               <Route path="/settings/organization/security" element={<OrganizationSecurity />} />
@@ -105,6 +112,7 @@ export default function App() {
             <Route path="/notifications" element={<NotificationsPage />} />
             <Route path="/action-center" element={<ActionCenter />} />
             <Route path="/organization" element={<OrganizationLayout />} />
+            <Route path="/analytics" element={<Navigate to="/analytics/productivity" replace />} />
             <Route path="/analytics/productivity" element={<ProductivityAnalytics />} />
             <Route path="/analytics/delivery" element={<DeliveryAnalytics />} />
             <Route path="/analytics/collaboration" element={<CollaborationAnalytics />} />

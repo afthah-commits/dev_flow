@@ -2,11 +2,15 @@ from app.core.config import settings
 from .base import AIProvider
 from .mock import MockAIProvider
 from .openai_provider import OpenAIProvider
+from .gemini_provider import GeminiProvider
 from .context import build_project_context
 from typing import List, Dict, Any, Optional
 
 def get_ai_provider() -> AIProvider:
-    if settings.AI_PROVIDER.lower() == "openai":
+    provider = settings.AI_PROVIDER.lower()
+    if provider == "gemini":
+        return GeminiProvider()
+    if provider == "openai":
         return OpenAIProvider()
     return MockAIProvider()
 

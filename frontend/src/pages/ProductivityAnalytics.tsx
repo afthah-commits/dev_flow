@@ -1,6 +1,8 @@
 import React, { useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { timeApi } from '../lib/timeApi';
 import { ProductivityStats, TeamWorkload } from '../types/time';
+import { TrendingUp, RefreshCw } from 'lucide-react';
 
 export default function ProductivityAnalytics() {
   const [stats, setStats] = useState<ProductivityStats | null>(null);
@@ -52,7 +54,58 @@ export default function ProductivityAnalytics() {
 
   return (
     <div className="max-w-6xl mx-auto space-y-6">
-      <h1 className="text-3xl font-bold text-white">Productivity Analytics</h1>
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-2 border-b border-gray-800">
+        <div>
+          <h1 className="text-2xl sm:text-3xl font-bold text-white flex items-center gap-2.5">
+            <TrendingUp className="w-7 h-7 text-blue-400" />
+            Productivity Analytics
+          </h1>
+          <p className="text-sm text-gray-400 mt-1">
+            Developer velocity, tracked hours, and sprint completion metrics.
+          </p>
+        </div>
+        <button
+          onClick={() => { setLoading(true); setError(false); loadData(); }}
+          className="p-2 self-start sm:self-auto text-gray-400 hover:text-white bg-gray-900 border border-gray-800 rounded-lg hover:bg-gray-800 transition-colors"
+          title="Refresh analytics"
+        >
+          <RefreshCw className="w-4 h-4" />
+        </button>
+      </div>
+
+      {/* Analytics Sub-tabs */}
+      <div className="flex flex-wrap items-center gap-2 text-sm border-b border-gray-800 pb-3">
+        <Link
+          to="/analytics/productivity"
+          className="px-3 py-1.5 rounded-md font-medium bg-blue-600/20 text-blue-300 border border-blue-500/30"
+        >
+          Productivity
+        </Link>
+        <Link
+          to="/analytics/delivery"
+          className="px-3 py-1.5 rounded-md font-medium text-gray-400 hover:text-white hover:bg-gray-900 transition-colors"
+        >
+          Delivery & DORA
+        </Link>
+        <Link
+          to="/analytics/collaboration"
+          className="px-3 py-1.5 rounded-md font-medium text-gray-400 hover:text-white hover:bg-gray-900 transition-colors"
+        >
+          Collaboration
+        </Link>
+        <Link
+          to="/analytics/knowledge"
+          className="px-3 py-1.5 rounded-md font-medium text-gray-400 hover:text-white hover:bg-gray-900 transition-colors"
+        >
+          Knowledge Base
+        </Link>
+        <Link
+          to="/analytics/workflows"
+          className="px-3 py-1.5 rounded-md font-medium text-gray-400 hover:text-white hover:bg-gray-900 transition-colors"
+        >
+          Workflows
+        </Link>
+      </div>
 
       {stats && (
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">

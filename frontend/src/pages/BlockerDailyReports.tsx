@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { useOrganization } from '../contexts/OrganizationContext';
 import { dailyReportApi } from '../lib/dailyReportApi';
 import { BlockerSummaryResponse } from '../types/dailyReport';
@@ -29,18 +30,19 @@ export default function BlockerDailyReports() {
     }, [days, currentOrganization]);
 
     return (
-        <div className="p-8 max-w-5xl mx-auto">
-            <div className="flex items-center justify-between mb-8">
+        <div className="max-w-6xl mx-auto space-y-6">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-2 border-b border-gray-800">
                 <div>
-                    <h1 className="text-2xl font-bold text-white flex items-center gap-2">
-                        <AlertTriangle className="text-red-500" /> Blocker Intelligence
+                    <h1 className="text-2xl sm:text-3xl font-bold text-white flex items-center gap-2.5">
+                        <AlertTriangle className="w-7 h-7 text-amber-400" />
+                        Blocker & Impediment Intelligence
                     </h1>
-                    <p className="text-gray-400 mt-1">Track and resolve frequent team blockers.</p>
+                    <p className="text-sm text-gray-400 mt-1">Track recurring obstacles, dependencies, and blockers across sprints.</p>
                 </div>
                 <div className="flex items-center gap-2">
-                    <span className="text-gray-400 text-sm">Timeframe:</span>
+                    <span className="text-gray-400 text-xs">Timeframe:</span>
                     <select
-                        className="bg-gray-800 text-white border-gray-700 rounded-md px-3 py-2"
+                        className="bg-gray-900 text-white border border-gray-800 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-amber-500"
                         value={days}
                         onChange={(e) => setDays(Number(e.target.value))}
                     >
@@ -49,6 +51,40 @@ export default function BlockerDailyReports() {
                         <option value={30}>Last 30 Days</option>
                     </select>
                 </div>
+            </div>
+
+            {/* Reports Navigation Tabs */}
+            <div className="flex flex-wrap items-center gap-2 text-sm border-b border-gray-800 pb-3">
+                <Link
+                    to="/reports"
+                    className="px-3 py-1.5 rounded-md font-medium text-gray-400 hover:text-white hover:bg-gray-900 transition-colors"
+                >
+                    Executive & Overview Reports
+                </Link>
+                <Link
+                    to="/daily-reports"
+                    className="px-3 py-1.5 rounded-md font-medium text-gray-400 hover:text-white hover:bg-gray-900 transition-colors"
+                >
+                    My Daily Reports
+                </Link>
+                <Link
+                    to="/daily-reports/team"
+                    className="px-3 py-1.5 rounded-md font-medium text-gray-400 hover:text-white hover:bg-gray-900 transition-colors"
+                >
+                    Team Reports
+                </Link>
+                <Link
+                    to="/daily-reports/weekly"
+                    className="px-3 py-1.5 rounded-md font-medium text-gray-400 hover:text-white hover:bg-gray-900 transition-colors"
+                >
+                    Weekly Summary
+                </Link>
+                <Link
+                    to="/daily-reports/blockers"
+                    className="px-3 py-1.5 rounded-md font-medium bg-amber-600/20 text-amber-300 border border-amber-500/30"
+                >
+                    Blockers Tracker
+                </Link>
             </div>
 
             {error && <div className="p-4 bg-red-900/50 text-red-200 rounded-md mb-6">{error}</div>}

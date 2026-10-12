@@ -125,7 +125,8 @@ export default function DashboardLayout() {
                   </svg>
                 </button>
                 <div className="absolute left-0 mt-1 hidden group-hover:block bg-gray-900 border border-gray-800 p-1.5 rounded-lg shadow-2xl z-50 w-44 backdrop-blur-xl">
-                  <Link to="/daily-reports" className="block text-xs text-gray-300 hover:text-white hover:bg-gray-800/80 px-3 py-2 rounded-md transition-colors">My Reports</Link>
+                  <Link to="/reports" className="block text-xs text-gray-300 hover:text-white hover:bg-gray-800/80 px-3 py-2 rounded-md transition-colors">Executive Reports</Link>
+                  <Link to="/daily-reports" className="block text-xs text-gray-300 hover:text-white hover:bg-gray-800/80 px-3 py-2 rounded-md transition-colors">My Daily Reports</Link>
                   <Link to="/daily-reports/team" className="block text-xs text-gray-300 hover:text-white hover:bg-gray-800/80 px-3 py-2 rounded-md transition-colors">Team Reports</Link>
                   <Link to="/daily-reports/weekly" className="block text-xs text-gray-300 hover:text-white hover:bg-gray-800/80 px-3 py-2 rounded-md transition-colors">Weekly Summary</Link>
                   <Link to="/daily-reports/blockers" className="block text-xs text-gray-300 hover:text-white hover:bg-gray-800/80 px-3 py-2 rounded-md transition-colors">Blockers</Link>
@@ -195,7 +196,8 @@ export default function DashboardLayout() {
             <Link to="/projects" onClick={() => setMobileMenuOpen(false)} className={navLinkClass("/projects")}>Projects</Link>
             <Link to="/templates" onClick={() => setMobileMenuOpen(false)} className={navLinkClass("/templates")}>Templates</Link>
             <Link to="/time" onClick={() => setMobileMenuOpen(false)} className={navLinkClass("/time")}>Time Tracking</Link>
-            <Link to="/analytics/productivity" onClick={() => setMobileMenuOpen(false)} className={navLinkClass("/analytics/productivity")}>Productivity Analytics</Link>
+            <Link to="/analytics/productivity" onClick={() => setMobileMenuOpen(false)} className={navLinkClass("/analytics")}>Productivity Analytics</Link>
+            <Link to="/reports" onClick={() => setMobileMenuOpen(false)} className={navLinkClass("/reports")}>Executive Reports</Link>
             <Link to="/daily-reports" onClick={() => setMobileMenuOpen(false)} className={navLinkClass("/daily-reports")}>Daily Reports</Link>
             <Link to="/infrastructure/environments" onClick={() => setMobileMenuOpen(false)} className={navLinkClass("/infrastructure/environments")}>Infrastructure</Link>
             <Link to="/organization" onClick={() => setMobileMenuOpen(false)} className={navLinkClass("/organization")}>Organization Settings</Link>
