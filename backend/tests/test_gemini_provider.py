@@ -27,7 +27,7 @@ async def test_gemini_missing_api_key(monkeypatch):
 @pytest.mark.asyncio
 async def test_gemini_chat_success(monkeypatch):
     monkeypatch.setattr(settings, "GEMINI_API_KEY", "test-gemini-key")
-    monkeypatch.setattr(settings, "GEMINI_MODEL", "gemini-1.5-flash")
+    monkeypatch.setattr(settings, "GEMINI_MODEL", "gemini-3.8-flash")
     provider = GeminiProvider()
 
     mock_response = MagicMock()
@@ -55,10 +55,42 @@ async def test_gemini_chat_success(monkeypatch):
         assert reply == "Hello! I can help you with your project."
         assert mock_post.called
         call_kwargs = mock_post.call_args[1]
-        assert "gemini-1.5-flash" in mock_post.call_args[0][0]
+        assert "gemini-3.8-flash" in mock_post.call_args[0][0]
         assert "test-gemini-key" in mock_post.call_args[0][0]
         assert call_kwargs["json"]["contents"][0]["role"] == "user"
         assert call_kwargs["json"]["contents"][0]["parts"][0]["text"] == "Hi"
+
+
+@pytest.mark.asyncio
+async def test_gemini_custom_model_override(monkeypatch):
+    monkeypatch.setattr(settings, "GEMINI_API_KEY", "test-gemini-key")
+    monkeypatch.setattr(settings, "GEMINI_MODEL", "gemini-3.6-flash")
+    provider = GeminiProvider()
+
+    mock_response = MagicMock()
+    mock_response.status_code = 200
+    mock_response.headers = {"content-type": "application/json"}
+    mock_response.json.return_value = {
+        "candidates": [
+            {
+                "content": {
+                    "parts": [{"text": "Custom model response."}]
+                },
+                "finishReason": "STOP"
+            }
+        ]
+    }
+
+    with patch("httpx.AsyncClient.post", new_callable=AsyncMock) as mock_post:
+        mock_post.return_value = mock_response
+
+        reply = await provider.chat(
+            messages=[{"role": "user", "content": "Hi"}],
+            system_prompt="You are DevFlow AI."
+        )
+
+        assert reply == "Custom model response."
+        assert "gemini-3.6-flash" in mock_post.call_args[0][0]
 
 
 @pytest.mark.asyncio

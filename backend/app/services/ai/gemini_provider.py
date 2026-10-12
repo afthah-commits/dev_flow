@@ -28,7 +28,7 @@ class GeminiProvider(AIProvider):
                 detail="Gemini API key is not configured. Please set GEMINI_API_KEY in the backend environment."
             )
 
-        model = settings.GEMINI_MODEL or "gemini-1.5-flash"
+        model = settings.GEMINI_MODEL or "gemini-3.8-flash"
         url = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={api_key}"
 
         # 1. Prepare system instruction
