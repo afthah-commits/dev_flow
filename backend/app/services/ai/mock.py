@@ -107,6 +107,34 @@ class MockAIProvider(AIProvider):
                     "risks": [],
                     "recommended_checks": []
                 })
+            elif "executive_summary" in props or "project_health" in props: # ProjectHealthReport
+                return json.dumps({
+                    "executive_summary": "The project is healthy and active. All critical development milestones are progressing as planned.",
+                    "project_health": "HEALTHY",
+                    "delivery_status": "ON_TRACK",
+                    "engineering_risks": "Low risk; dependencies are stable and no security vulnerabilities were detected.",
+                    "team_workload": "Balanced workload across active team members.",
+                    "github_activity": "Active commits and pull requests recorded.",
+                    "deployment_health": "All recent production and staging deployments succeeded.",
+                    "productivity": "Velocity is consistent with project expectations.",
+                    "recommendations": ["Review open pull requests", "Keep test coverage high"],
+                    "next_actions": ["Plan next sprint backlog", "Run automated integration suite"]
+                })
+            elif "priorities" in props: # PriorityList
+                import uuid
+                return json.dumps({
+                    "priorities": [
+                        {
+                            "task_id": str(uuid.uuid4()),
+                            "task_key": "TASK-1",
+                            "priority": "HIGH",
+                            "score": 0.9,
+                            "reason": "Critical path deliverable",
+                            "blockers": [],
+                            "recommendation": "Address in current iteration"
+                        }
+                    ]
+                })
             elif "deployment_health" in props: # DeploymentAnalysis
                 return json.dumps({
                     "deployment_health": "Healthy",

@@ -293,7 +293,8 @@ def test_route_helper_yields_effective_paths_and_methods():
     for r in routes:
         assert isinstance(r.path, str) and r.path.startswith("/")
         # HTTP routes expose methods; websocket routes may legitimately not
-        assert r.methods is None or len(r.methods) > 0
+        methods = getattr(r, "methods", None)
+        assert methods is None or len(methods) > 0
         assert r.endpoint is not None
 
 
@@ -321,7 +322,7 @@ def test_important_routes_registered_exactly_once():
     ]
     routes = list(iter_flattened_routes())
     for path in must_exist_once:
-        matches = [(r.path, tuple(sorted(r.methods or []))) for r in routes if r.path == path]
+        matches = [(r.path, tuple(sorted(getattr(r, "methods", None) or []))) for r in routes if r.path == path]
         assert len(matches) >= 1, f"{path} not registered"
         # one registration per effective method+path combination (no dupes)
         assert len(matches) == len(set(matches)), f"{path} duplicated: {matches}"
@@ -331,7 +332,7 @@ def test_important_routes_registered_exactly_once():
 def test_no_duplicate_effective_method_path_combinations():
     from tests.conftest import iter_flattened_routes
     from collections import Counter
-    seen = [(r.path, tuple(sorted(r.methods or []))) for r in iter_flattened_routes()]
+    seen = [(r.path, tuple(sorted(getattr(r, "methods", None) or []))) for r in iter_flattened_routes()]
     dups = [k for k, c in Counter(seen).items() if c > 1]
     assert not dups, f"duplicate effective routes: {dups}"
 

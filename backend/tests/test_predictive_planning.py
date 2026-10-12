@@ -118,3 +118,22 @@ def test_empty_project(client: TestClient, db: Session, auth_setup_predictive: d
     data = res.json()
     assert data["remaining_tasks"] == 0
     assert data["completed_tasks"] == 0
+
+def test_health_report(client: TestClient, db: Session, auth_setup_predictive: dict):
+    headers = auth_setup_predictive["headers"]
+    project_id = auth_setup_predictive["project_id"]
+    
+    res = client.get(f"/api/v1/ai/projects/{project_id}/health-report", headers=headers)
+    assert res.status_code == 200
+    data = res.json()
+    assert "project_health" in data
+    assert "executive_summary" in data
+
+def test_org_daily_brief(client: TestClient, db: Session, auth_setup_predictive: dict):
+    headers = auth_setup_predictive["headers"]
+    
+    res = client.get("/api/v1/ai/daily-brief", headers=headers)
+    assert res.status_code == 200
+    data = res.json()
+    assert "overdue_tasks" in data
+    assert "blocked_tasks" in data

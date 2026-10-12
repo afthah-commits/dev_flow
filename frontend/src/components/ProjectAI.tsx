@@ -27,15 +27,18 @@ export function ProjectAI({ project }: Props) {
   }, [project.id]);
 
   useEffect(() => {
-    chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    if (typeof chatEndRef.current?.scrollIntoView === 'function') {
+      chatEndRef.current.scrollIntoView({ behavior: 'smooth' });
+    }
   }, [messages, loading]);
 
   const loadConversations = async () => {
     try {
       const res = await aiApi.listConversations(project.id);
-      setConversations(res);
-      if (res.length > 0 && !activeConv) {
-        loadConversation(res[0].id);
+      const list = Array.isArray(res) ? res : ((res as any)?.items || []);
+      setConversations(list);
+      if (list.length > 0 && !activeConv) {
+        loadConversation(list[0].id);
       }
     } catch (e) {
       console.error(e);

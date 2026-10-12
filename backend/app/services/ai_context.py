@@ -38,9 +38,9 @@ async def get_comprehensive_project_context(db: Session, project_id: UUID, user_
         "status": project.status,
         "priority": project.priority,
         "tech_stack": project.tech_stack,
-        "health_score": project.health_score,
-        "start_date": project.start_date.isoformat() if project.start_date else None,
-        "target_date": project.target_date.isoformat() if project.target_date else None,
+        "health_score": getattr(project, "health_score", None),
+        "start_date": project.start_date.isoformat() if getattr(project, "start_date", None) else None,
+        "target_date": project.end_date.isoformat() if getattr(project, "end_date", None) else (project.start_date.isoformat() if getattr(project, "start_date", None) else None),
     }
 
     # Tasks (limit 20 recent, get counts)
@@ -63,8 +63,8 @@ async def get_comprehensive_project_context(db: Session, project_id: UUID, user_
         "total": total_tasks,
         "completed": done_tasks,
         "in_progress": in_progress,
-        "overdue": [{"id": str(t.id), "key": t.key, "title": t.title} for t in overdue_tasks],
-        "blocked": [{"id": str(t.id), "key": t.key, "title": t.title} for t in blocked_tasks]
+        "overdue": [{"id": str(t.id), "key": getattr(t, "task_key", getattr(t, "key", None)), "title": t.title} for t in overdue_tasks],
+        "blocked": [{"id": str(t.id), "key": getattr(t, "task_key", getattr(t, "key", None)), "title": t.title} for t in blocked_tasks]
     }
 
     # Sprints
@@ -113,7 +113,7 @@ async def get_comprehensive_project_context(db: Session, project_id: UUID, user_
     # Time tracking
     recent_time = db.query(TimeEntry).filter(
         TimeEntry.project_id == project_id
-    ).order_by(TimeEntry.start_time.desc()).limit(10).all()
+    ).order_by(TimeEntry.started_at.desc()).limit(10).all()
     context["time_tracking"] = [
         {"duration_seconds": t.duration_seconds, "description": t.description}
         for t in recent_time
