@@ -11,9 +11,9 @@ class Settings(BaseSettings):
     
     DATABASE_URL: str = "sqlite:///./test.db"
     
-    FRONTEND_URL: str = "http://localhost:5173"
+    FRONTEND_URL: str = "https://dev-flow-eight-tau.vercel.app"
     BACKEND_URL: str = "http://localhost:8000"
-    ALLOWED_ORIGINS: str = "http://localhost:5173"
+    ALLOWED_ORIGINS: str = "http://localhost:5173,https://dev-flow-eight-tau.vercel.app"
     
     GOOGLE_CLIENT_ID: Optional[str] = None
     GOOGLE_CLIENT_SECRET: Optional[str] = None

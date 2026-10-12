@@ -1,7 +1,8 @@
-import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
 import { Organization } from '../types/organization';
 import { organizationApi } from '../lib/organizationApi';
 import { api } from '../lib/axios';
+import { useAuth } from '../hooks/useAuth';
 
 interface OrganizationContextType {
     currentOrganization: Organization | null;
@@ -14,17 +15,50 @@ interface OrganizationContextType {
 const OrganizationContext = createContext<OrganizationContextType | undefined>(undefined);
 
 export const OrganizationProvider = ({ children }: { children: ReactNode }) => {
+    const { user, isAuthenticated } = useAuth();
     const [currentOrganization, setCurrentOrganizationState] = useState<Organization | null>(null);
     const [organizations, setOrganizations] = useState<Organization[]>([]);
     const [isLoading, setIsLoading] = useState(true);
 
-    const refreshOrganizations = async () => {
+    const setCurrentOrganization = useCallback((org: Organization) => {
+        setCurrentOrganizationState(org);
+        if (typeof window !== 'undefined') {
+            localStorage.setItem('devflow_current_org', org.id);
+        }
+        api.defaults.headers.common['X-Organization-Id'] = org.id;
+    }, []);
+
+    const refreshOrganizations = useCallback(async () => {
+        const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
+        if (!token) {
+            setOrganizations([]);
+            setCurrentOrganizationState(null);
+            setIsLoading(false);
+            return;
+        }
+
+        setIsLoading(true);
         try {
-            const orgs = await organizationApi.list();
+            let orgs = await organizationApi.list();
+            // If user has no organizations (e.g. legacy/edge cases), bootstrap a default workspace
+            if (orgs.length === 0) {
+                const orgName = user?.name ? `${user.name}'s Workspace` : 'My Workspace';
+                try {
+                    const newOrg = await organizationApi.create({ name: orgName });
+                    orgs = [newOrg];
+                } catch {
+                    // Organization creation may fail if backend already bootstrapped in parallel
+                    orgs = await organizationApi.list();
+                }
+            }
             setOrganizations(orgs);
+
             if (orgs.length > 0) {
-                // if no current org, or current org not in list, set first
-                if (!currentOrganization || !orgs.find((o: Organization) => o.id === currentOrganization.id)) {
+                const savedOrgId = typeof window !== 'undefined' ? localStorage.getItem('devflow_current_org') : null;
+                const savedOrg = savedOrgId ? orgs.find((o: Organization) => o.id === savedOrgId) : null;
+                if (savedOrg) {
+                    setCurrentOrganization(savedOrg);
+                } else {
                     setCurrentOrganization(orgs[0]);
                 }
             } else {
@@ -35,43 +69,17 @@ export const OrganizationProvider = ({ children }: { children: ReactNode }) => {
         } finally {
             setIsLoading(false);
         }
-    };
-
-    const setCurrentOrganization = (org: Organization) => {
-        setCurrentOrganizationState(org);
-        localStorage.setItem('devflow_current_org', org.id);
-        // set header for future requests
-        api.defaults.headers.common['X-Organization-Id'] = org.id;
-    };
+    }, [user, setCurrentOrganization]);
 
     useEffect(() => {
-        const loadInitial = async () => {
-            setIsLoading(true);
-            try {
-                const orgs = await organizationApi.list();
-                setOrganizations(orgs);
-                
-                const savedOrgId = localStorage.getItem('devflow_current_org');
-                if (savedOrgId) {
-                    const savedOrg = orgs.find((o: Organization) => o.id === savedOrgId);
-                    if (savedOrg) {
-                        setCurrentOrganization(savedOrg);
-                        return;
-                    }
-                }
-                
-                if (orgs.length > 0) {
-                    setCurrentOrganization(orgs[0]);
-                }
-            } catch (error) {
-                console.error('Init orgs failed', error);
-            } finally {
-                setIsLoading(false);
-            }
-        };
-        
-        loadInitial();
-    }, []);
+        if (isAuthenticated) {
+            refreshOrganizations();
+        } else {
+            setOrganizations([]);
+            setCurrentOrganizationState(null);
+            setIsLoading(false);
+        }
+    }, [isAuthenticated, refreshOrganizations]);
 
     return (
         <OrganizationContext.Provider value={{

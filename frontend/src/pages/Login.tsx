@@ -22,7 +22,11 @@ export default function Login() {
       await login(res.data.access_token);
       navigate("/");
     } catch (err: any) {
-      setError(err.response?.data?.detail || "Failed to login. Check your credentials.");
+      const detail = err.response?.data?.detail;
+      const msg = Array.isArray(detail)
+        ? detail.map((d: any) => d.msg || JSON.stringify(d)).join(", ")
+        : (typeof detail === "string" ? detail : (err.message || "Failed to login. Check your credentials."));
+      setError(msg);
     } finally {
       setIsLoading(false);
     }

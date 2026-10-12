@@ -16,10 +16,20 @@ export const api = axios.create({
   },
 });
 
+// Seed default organization header from localStorage if available
+const savedOrgId = typeof window !== "undefined" ? localStorage.getItem("devflow_current_org") : null;
+if (savedOrgId) {
+  api.defaults.headers.common["X-Organization-Id"] = savedOrgId;
+}
+
 api.interceptors.request.use((config) => {
-  const token = localStorage.getItem("token");
+  const token = typeof window !== "undefined" ? localStorage.getItem("token") : null;
   if (token && config.headers) {
     config.headers.Authorization = `Bearer ${token}`;
+  }
+  const orgId = typeof window !== "undefined" ? localStorage.getItem("devflow_current_org") : null;
+  if (orgId && config.headers && !config.headers["X-Organization-Id"]) {
+    config.headers["X-Organization-Id"] = orgId;
   }
   return config;
 });

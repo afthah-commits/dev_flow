@@ -41,13 +41,18 @@ app.add_middleware(CorrelationIdMiddleware)
 
 
 # Set all CORS enabled origins
-allowed_origins = [origin.strip() for origin in settings.ALLOWED_ORIGINS.split(",") if origin.strip()] if hasattr(settings, 'ALLOWED_ORIGINS') else [settings.FRONTEND_URL]
+_origins_raw = settings.ALLOWED_ORIGINS.split(",") if hasattr(settings, 'ALLOWED_ORIGINS') else [settings.FRONTEND_URL]
+allowed_origins = [origin.strip().rstrip("/") for origin in _origins_raw if origin.strip()]
+if "https://dev-flow-eight-tau.vercel.app" not in allowed_origins:
+    allowed_origins.append("https://dev-flow-eight-tau.vercel.app")
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=allowed_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
+    expose_headers=["*"],
 )
 
 app.include_router(auth.router, prefix=f"{settings.API_V1_STR}/auth", tags=["auth"])

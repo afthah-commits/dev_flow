@@ -71,7 +71,11 @@ export default function ProjectForm() {
         navigate(`/projects/${p.id}`);
       }
     } catch (err: any) {
-      setError(err.response?.data?.detail?.[0]?.msg || err.response?.data?.detail || "Failed to save project.");
+      const detail = err.response?.data?.detail;
+      const msg = Array.isArray(detail)
+        ? detail.map((d: any) => d.msg || JSON.stringify(d)).join(", ")
+        : (typeof detail === "string" ? detail : (err.message || "Failed to save project."));
+      setError(msg);
     } finally {
       setSaving(false);
     }

@@ -44,6 +44,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const logout = () => {
     localStorage.removeItem("token");
+    localStorage.removeItem("devflow_current_org");
+    delete api.defaults.headers.common["X-Organization-Id"];
     setUser(null);
   };
 

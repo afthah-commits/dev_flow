@@ -21,6 +21,10 @@ export default function DashboardLayout() {
     return <Navigate to="/login" replace />;
   }
 
+  if (!currentOrganization) {
+    return <div className="min-h-screen bg-gray-950 flex items-center justify-center text-gray-200">Setting up workspace...</div>;
+  }
+
   return (
     <div className="min-h-screen bg-gray-950 flex flex-col text-gray-100">
       <nav className="border-b border-gray-800 bg-gray-900 px-6 py-4 flex items-center justify-between">

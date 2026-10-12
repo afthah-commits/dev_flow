@@ -33,6 +33,35 @@ def register(user_in: UserCreate, db: Session = Depends(deps.get_db),
     db.add(user_obj)
     db.commit()
     db.refresh(user_obj)
+
+    # Bootstrap default organization for newly registered user
+    from app.models.organization import Organization, OrganizationMember, OrganizationRole
+    from app.api.v1.organizations import generate_slug
+    org_name = f"{user_in.name}'s Workspace" if user_in.name else "My Workspace"
+    base_slug = generate_slug(org_name)
+    slug = base_slug
+    counter = 1
+    while db.query(Organization).filter(Organization.slug == slug).first():
+        slug = f"{base_slug}-{counter}"
+        counter += 1
+
+    org = Organization(
+        name=org_name,
+        slug=slug,
+        created_by=user_obj.id,
+    )
+    db.add(org)
+    db.commit()
+    db.refresh(org)
+
+    member = OrganizationMember(
+        organization_id=org.id,
+        user_id=user_obj.id,
+        role=OrganizationRole.OWNER,
+    )
+    db.add(member)
+    db.commit()
+
     return user_obj
 
 @router.post("/login", response_model=Token)

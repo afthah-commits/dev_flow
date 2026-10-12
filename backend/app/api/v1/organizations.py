@@ -60,6 +60,31 @@ def list_organizations(
     orgs = db.query(Organization).join(OrganizationMember).filter(
         OrganizationMember.user_id == current_user.id
     ).all()
+    # Bootstrap fallback: ensure user always has at least one workspace
+    if not orgs:
+        org_name = f"{current_user.name}'s Workspace" if current_user.name else "My Workspace"
+        base_slug = generate_slug(org_name)
+        slug = base_slug
+        counter = 1
+        while db.query(Organization).filter(Organization.slug == slug).first():
+            slug = f"{base_slug}-{counter}"
+            counter += 1
+        org = Organization(
+            name=org_name,
+            slug=slug,
+            created_by=current_user.id
+        )
+        db.add(org)
+        db.commit()
+        db.refresh(org)
+        member = OrganizationMember(
+            organization_id=org.id,
+            user_id=current_user.id,
+            role=OrganizationRole.OWNER
+        )
+        db.add(member)
+        db.commit()
+        orgs = [org]
     return orgs
 
 @router.get("/{organization_id}", response_model=OrganizationResponse)
@@ -69,7 +94,7 @@ def get_organization(
     organization_id: UUID,
     current_user: User = Depends(deps.get_current_user)
 ) -> Any:
-    deps.deps.require_organization_member(db, current_user.id, organization_id)
+    deps.require_organization_member(db, current_user.id, organization_id)
     org = db.query(Organization).filter(Organization.id == organization_id).first()
     return org
 
@@ -112,7 +137,7 @@ def list_members(
     organization_id: UUID,
     current_user: User = Depends(deps.get_current_user)
 ) -> Any:
-    deps.deps.require_organization_member(db, current_user.id, organization_id)
+    deps.require_organization_member(db, current_user.id, organization_id)
     members = db.query(OrganizationMember).filter(OrganizationMember.organization_id == organization_id).all()
     return members
 

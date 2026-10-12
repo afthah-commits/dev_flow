@@ -20,7 +20,11 @@ export default function Register() {
       await api.post("/auth/register", { name, email, password });
       navigate("/login");
     } catch (err: any) {
-      setError(err.response?.data?.detail || "Failed to register.");
+      const detail = err.response?.data?.detail;
+      const msg = Array.isArray(detail)
+        ? detail.map((d: any) => d.msg || JSON.stringify(d)).join(", ")
+        : (typeof detail === "string" ? detail : (err.message || "Failed to register."));
+      setError(msg);
     } finally {
       setIsLoading(false);
     }
